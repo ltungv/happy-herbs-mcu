@@ -7,44 +7,84 @@
 #include <WiFiClientSecure.h>
 
 #include "constants.h"
-#include "mqtt.h"
-#include "wifi.h"
+#include "happy_herbs.h"
+#include "ioutils.h"
 
 WiFiClientSecure wifiClient;
+PubSubClient pubsubClient(wifiClient);
 
-PubSubClient mqttClient;
+HappyHerbsState hhState;
+HappyHerbsService hhService(pubsubClient, hhState);
+
+char* awsEndpoint;
+char* awsRootCACert;
+char* awsClientCert;
+char* awsClientKey;
 
 void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
   Serial.begin(SERIAL_BAUD_RATE);
 
   if (!SPIFFS.begin()) {
-    Serial.println("Could not initialize file system!");
     return;
   }
 
-  if (!wifiConnect(WIFI_CREDS.c_str())) {
-    Serial.println("Could not connect to wifi!");
+  awsEndpoint = loadFile(AWS_IOT_ENDPOINT.c_str());
+  if (!awsEndpoint) {
+    return;
+  }
+  awsRootCACert = loadFile(AWS_ROOTCA_CERT.c_str());
+  if (!awsRootCACert) {
+    return;
+  }
+  awsClientCert = loadFile(AWS_CLIENT_CERT.c_str());
+  if (!awsClientCert) {
+    return;
+  }
+  awsClientKey = loadFile(AWS_CLIENT_KEY.c_str());
+  if (!awsClientKey) {
     return;
   }
 
-  if (!wifiSetupClientSecure(wifiClient, AWS_ROOTCA_CERT.c_str(),
-                                AWS_DEVICE_CERT.c_str(),
-                                AWS_DEVICE_KEY.c_str())) {
-    Serial.println("Could not configurate client authentication!");
-    return;
-  }
+  // ================ CONNECT TO WIFI NETWORK ================
+  char* wifiCreds = loadFile(WIFI_CREDS.c_str());
+  StaticJsonDocument<256> wifiCredsJson;
+  deserializeJson(wifiCredsJson, wifiCreds);
+  free(wifiCreds);
 
-  if (!mqttSetupClientSecure(mqttClient, wifiClient,
-                                AWS_IOT_ENDPOINT.c_str())) {
-    Serial.println("Could not configurate MQTT client!");
-    return;
+  const String ssid = wifiCredsJson["ssid"];
+  const String password = wifiCredsJson["password"];
+  Serial.print("Connecting to wifi");
+  WiFi.begin(ssid.c_str(), password.c_str());
+  while (WiFi.status() != WL_CONNECTED) {
+    Serial.print(".");
+    delay(500);
   }
+  Serial.println("connected!");
+
+  // ================ SETUP MQTT CLIENT ================
+  wifiClient.setCACert(awsRootCACert);
+  wifiClient.setCertificate(awsClientCert);
+  wifiClient.setPrivateKey(awsClientKey);
+
+  pubsubClient.setServer(awsEndpoint, 8883);
+  pubsubClient.setCallback([](char* topic, byte* payload, unsigned int length) {
+    Serial.print("RECV [");
+    Serial.print(topic);
+    Serial.print("]");
+    Serial.print(" : ");
+    Serial.println((char*)payload);
+    hhService.handleCallback(topic, payload, length);
+  });
+
+  pinMode(LED_BUILTIN, OUTPUT);
+  hhState.setLampPinID(LED_BUILTIN);
+  hhState.setLampState(false);
 }
 
 void loop() {
-  if (!mqttClient.connected()) {
-    mqttReconnect(mqttClient);
+  if (!hhService.connected()) {
+    hhService.reconnect();
   }
-  mqttClient.loop();
+  hhService.loop();
+  delay(1000);
 }
