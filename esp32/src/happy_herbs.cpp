@@ -1,21 +1,33 @@
-
 #include "happy_herbs.h"
 
 #include <Arduino.h>
-#include <SPIFFS.h>
 
 #include "constants.h"
 
-bool HappyHerbsState::getLampState() {
+HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, int lampPinID) {
+  this->lightSensorBH1750 = &lightSensorBH17150;
+  this->lampPinID = lampPinID;
+}
+
+/**
+ * Performs digital read on the pin
+ */
+bool HappyHerbsState::readLampPinID() {
   return digitalRead(this->lampPinID) == HIGH;
 }
 
-void HappyHerbsState::setLampState(bool lampState) {
+/**
+ * Performs digital write on the pin
+ */
+void HappyHerbsState::writeLampPinID(bool lampState) {
   digitalWrite(this->lampPinID, lampState);
 }
 
-void HappyHerbsState::setLampPinID(int lampPinID) {
-  this->lampPinID = lampPinID;
+/**
+ * Reads the value given from the sensor
+ */
+float HappyHerbsState::readLightSensorBH1750() {
+  return this->lightSensorBH1750->readLightLevel();
 }
 
 HappyHerbsService::HappyHerbsService(PubSubClient &pubsub,
@@ -24,10 +36,19 @@ HappyHerbsService::HappyHerbsService(PubSubClient &pubsub,
   this->hhState = &hhState;
 }
 
+/**
+ * Calls the underlying PubSubClient loop method
+ */
 void HappyHerbsService::loop() { this->pubsub->loop(); }
 
+/**
+ * Check if the client is still connected
+ */
 bool HappyHerbsService::connected() { return this->pubsub->connected(); }
 
+/**
+ * Try to recconect to AWS IoT
+ */
 void HappyHerbsService::reconnect() {
   Serial.println("Connecting to AWS IoT");
   while (!this->pubsub->connected()) {
@@ -47,6 +68,10 @@ void HappyHerbsService::reconnect() {
   this->publishShadowUpdate();
 }
 
+/**
+ * Receives messages from all topics; this method acts as a controller that
+ * routes messages to other handlers that can process the message
+ */
 void HappyHerbsService::handleCallback(char *topic, byte *payload,
                                        unsigned int length) {
   if (strcmp(topic, TOPIC_SHADOW_UPDATE_DELTA.c_str()) == 0) {
@@ -56,21 +81,31 @@ void HappyHerbsService::handleCallback(char *topic, byte *payload,
   }
 };
 
+/**
+ * Handle messages from the topic
+ * "$aws/things/{thing_name}/shadow/update/delta". Upon a new message, the
+ * client will update it state as given in the message
+ */
 void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   int ts = delta["timestamp"];
   if (ts > this->lastUpdated) {
     bool lampState = delta["state"]["lampState"];
-    this->hhState->setLampState(lampState);
+    this->hhState->writeLampPinID(lampState);
     this->lastUpdated = ts;
     this->publishShadowUpdate();
   }
 }
 
+/**
+ * Publishes a message to the topic "$aws/things/{thing_name}/shadow/update" to
+ * announces to client current state
+ */
 void HappyHerbsService::publishShadowUpdate() {
   StaticJsonDocument<512> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
-  reportedObj["lampState"] = this->hhState->getLampState();
+  reportedObj["lampState"] = this->hhState->readLampPinID();
+  reportedObj["lightMeter"] = this->hhState->readLightSensorBH1750();
 
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);

@@ -1,10 +1,12 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
+#include <BH1750.h>
 #include <FS.h>
 #include <PubSubClient.h>
 #include <SPIFFS.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <Wire.h>
 
 #include "constants.h"
 #include "happy_herbs.h"
@@ -15,7 +17,9 @@ WiFiClientSecure wifiClient;
 // Create a wifi client that communicates with AWS
 PubSubClient pubsubClient(wifiClient);
 
-HappyHerbsState hhState;
+BH1750 lightSensorBH1750(0x23);
+
+HappyHerbsState hhState(lightSensorBH1750, LED_BUILTIN);
 HappyHerbsService hhService(pubsubClient, hhState);
 
 char* awsEndpoint;
@@ -24,7 +28,20 @@ char* awsClientCert;
 char* awsClientKey;
 
 void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  if (!Wire.begin()) {
+    return;
+  }
   Serial.begin(SERIAL_BAUD_RATE);
+  while (!Serial)
+    ;
+
+  if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
+    return;
+  }
+
+  // ================ START FILE SYSTEM AND LOAD CONFIGURATIONS ================
 
   if (!SPIFFS.begin()) {
     return;
@@ -78,9 +95,7 @@ void setup() {
     hhService.handleCallback(topic, payload, length);
   });
 
-  pinMode(LED_BUILTIN, OUTPUT);
-  hhState.setLampPinID(LED_BUILTIN);
-  hhState.setLampState(false);
+  hhState.writeLampPinID(false);
 }
 
 void loop() {
