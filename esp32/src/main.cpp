@@ -10,7 +10,9 @@
 #include "happy_herbs.h"
 #include "ioutils.h"
 
+// Create a wifi client that uses SSL client authentication
 WiFiClientSecure wifiClient;
+// Create a wifi client that communicates with AWS
 PubSubClient pubsubClient(wifiClient);
 
 HappyHerbsState hhState;

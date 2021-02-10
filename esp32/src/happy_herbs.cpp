@@ -6,11 +6,12 @@
 
 #include "constants.h"
 
-bool HappyHerbsState::getLampState() { return this->lampState; }
+bool HappyHerbsState::getLampState() {
+  return digitalRead(this->lampPinID) == HIGH;
+}
 
 void HappyHerbsState::setLampState(bool lampState) {
   digitalWrite(this->lampPinID, lampState);
-  this->lampState = lampState;
 }
 
 void HappyHerbsState::setLampPinID(int lampPinID) {
