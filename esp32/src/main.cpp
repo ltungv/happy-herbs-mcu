@@ -12,11 +12,6 @@
 #include "happy_herbs.h"
 #include "ioutils.h"
 
-const int HH_GPIO_LAMP = LED_BUILTIN;
-const int HH_GPIO_BH1750_SDA = 8;
-const int HH_GPIO_BH1750_SCL = 9;
-const int HH_I2C_BH1750_ADDR = 0x23;
-
 char* awsEndpoint;
 char* awsRootCACert;
 char* awsClientCert;
@@ -110,6 +105,6 @@ void loop() {
     hhService.reconnect();
   }
   hhService.loop();
-  hhService.publishShadowUpdate();
+  Serial.println(hhState.readLightSensorBH1750());
   delay(10000);
 }
