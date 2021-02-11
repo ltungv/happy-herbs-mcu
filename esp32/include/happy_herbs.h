@@ -31,7 +31,6 @@ class HappyHerbsState {
 class HappyHerbsService {
  private:
   int lastUpdated = 0;
-  String endpoint;
   PubSubClient *pubsub;
   HappyHerbsState *hhState;
 

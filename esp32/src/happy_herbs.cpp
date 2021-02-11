@@ -105,7 +105,6 @@ void HappyHerbsService::publishShadowUpdate() {
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lampState"] = this->hhState->readLampPinID();
-  reportedObj["lightMeter"] = this->hhState->readLightSensorBH1750();
 
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);

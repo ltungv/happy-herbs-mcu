@@ -12,37 +12,40 @@
 #include "happy_herbs.h"
 #include "ioutils.h"
 
-// Create a wifi client that uses SSL client authentication
-WiFiClientSecure wifiClient;
-// Create a wifi client that communicates with AWS
-PubSubClient pubsubClient(wifiClient);
-
-BH1750 lightSensorBH1750(0x23);
-
-HappyHerbsState hhState(lightSensorBH1750, LED_BUILTIN);
-HappyHerbsService hhService(pubsubClient, hhState);
+const int HH_GPIO_LAMP = LED_BUILTIN;
+const int HH_GPIO_BH1750_SDA = 8;
+const int HH_GPIO_BH1750_SCL = 9;
+const int HH_I2C_BH1750_ADDR = 0x23;
 
 char* awsEndpoint;
 char* awsRootCACert;
 char* awsClientCert;
 char* awsClientKey;
 
-void setup() {
-  pinMode(LED_BUILTIN, OUTPUT);
+// Create a wifi client that uses SSL client authentication
+WiFiClientSecure wifiClient;
 
-  if (!Wire.begin()) {
-    return;
-  }
+// Create a wifi client that communicates with AWS
+PubSubClient pubsubClient(wifiClient);
+
+// Create an object to interact with the light sensor driver
+BH1750 lightSensorBH1750(HH_I2C_BH1750_ADDR);
+
+HappyHerbsState hhState(lightSensorBH1750, HH_GPIO_LAMP);
+HappyHerbsService hhService(pubsubClient, hhState);
+
+void setup() {
+  pinMode(HH_GPIO_LAMP, OUTPUT);
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
+  Wire.begin(HH_GPIO_BH1750_SDA, HH_GPIO_BH1750_SCL);
 
   if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
-    return;
+    Serial.println("Could not begin BH1750 light sensor");
   }
 
   // ================ START FILE SYSTEM AND LOAD CONFIGURATIONS ================
-
   if (!SPIFFS.begin()) {
     return;
   }
@@ -51,14 +54,17 @@ void setup() {
   if (!awsEndpoint) {
     return;
   }
+
   awsRootCACert = loadFile(AWS_ROOTCA_CERT.c_str());
   if (!awsRootCACert) {
     return;
   }
+
   awsClientCert = loadFile(AWS_CLIENT_CERT.c_str());
   if (!awsClientCert) {
     return;
   }
+
   awsClientKey = loadFile(AWS_CLIENT_KEY.c_str());
   if (!awsClientKey) {
     return;
@@ -95,6 +101,7 @@ void setup() {
     hhService.handleCallback(topic, payload, length);
   });
 
+  // ================ SET THE INITIAL STATE ================
   hhState.writeLampPinID(false);
 }
 
@@ -103,5 +110,6 @@ void loop() {
     hhService.reconnect();
   }
   hhService.loop();
-  delay(1000);
+  hhService.publishShadowUpdate();
+  delay(10000);
 }
