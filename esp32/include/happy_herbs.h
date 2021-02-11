@@ -44,6 +44,7 @@ class HappyHerbsService {
 
   void handleShadowUpdateDelta(const JsonDocument &);
   void publishShadowUpdate();
+  void publishAllCurrentSensorsMeasurements();
 };
 
 #endif  // HAPPY_HERBS_H_
