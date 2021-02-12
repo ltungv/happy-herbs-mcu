@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "constants.h"
+#include "time.h"
 
 HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, int lampPinID) {
   this->lightSensorBH1750 = &lightSensorBH17150;
@@ -115,4 +116,29 @@ void HappyHerbsService::publishShadowUpdate() {
   Serial.print("]");
   Serial.print(" : ");
   Serial.println(shadowUpdateBuf);
+}
+
+void HappyHerbsService::publishCurrentSensorsMeasurements() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return;
+  }
+  time(&now);
+
+  StaticJsonDocument<512> sensorsJson;
+  sensorsJson["timestamp"] = now;
+  sensorsJson["thingsName"] = AWS_THING_NAME;
+  JsonObject payloadObj = sensorsJson.createNestedObject("payload");
+  payloadObj["lightLevel"] = this->hhState->readLightSensorBH1750();
+
+  char sensorsBuf[512];
+  serializeJson(sensorsJson, sensorsBuf);
+  this->pubsub->publish(TOPIC_SENSORS_PUBLISH.c_str(), sensorsBuf);
+
+  Serial.print("SEND [");
+  Serial.print(TOPIC_SENSORS_PUBLISH);
+  Serial.print("]");
+  Serial.print(" : ");
+  Serial.println(sensorsBuf);
 }

@@ -9,7 +9,7 @@ const int HH_GPIO_BH1750_SCL = 9;
 const int HH_I2C_BH1750_ADDR = 0x23;
 
 const int SERIAL_BAUD_RATE = 115200;
-const String WIFI_CREDS = "/creds/wifi.json";
+const String MISC_CREDS = "/creds/misc.json";
 
 const String AWS_THING_NAME = "test-plant-module";
 const String AWS_IOT_ENDPOINT = "/creds/aws/iot-endpoint.txt";
@@ -21,6 +21,6 @@ const String SHADOW_TOPIC_PREFIX = "$aws/things/" + AWS_THING_NAME + "/shadow";
 const String TOPIC_SHADOW_UPDATE = SHADOW_TOPIC_PREFIX + "/update";
 const String TOPIC_SHADOW_UPDATE_DELTA = TOPIC_SHADOW_UPDATE + "/delta";
 
-const String TOPIC_SENSORS_PUBLISH = "sensorsPayload";
+const String TOPIC_SENSORS_PUBLISH = "sensorsMeasurements";
 
 #endif  // CONSTANTS_H

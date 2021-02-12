@@ -11,11 +11,16 @@
 #include "constants.h"
 #include "happy_herbs.h"
 #include "ioutils.h"
+#include "time.h"
 
 char* awsEndpoint;
 char* awsRootCACert;
 char* awsClientCert;
 char* awsClientKey;
+
+const char* ntpServer = "pool.ntp.org";
+int ntpTimezoneOffset = 0;
+int ntpDaylightOffset = 0;
 
 // Create a wifi client that uses SSL client authentication
 WiFiClientSecure wifiClient;
@@ -65,14 +70,17 @@ void setup() {
     return;
   }
 
-  // ================ CONNECT TO WIFI NETWORK ================
-  char* wifiCreds = loadFile(WIFI_CREDS.c_str());
-  StaticJsonDocument<256> wifiCredsJson;
-  deserializeJson(wifiCredsJson, wifiCreds);
-  free(wifiCreds);
+  char* miscCreds = loadFile(MISC_CREDS.c_str());
+  StaticJsonDocument<512> miscCredsJson;
+  deserializeJson(miscCredsJson, miscCreds);
+  free(miscCreds);
 
-  const String ssid = wifiCredsJson["ssid"];
-  const String password = wifiCredsJson["password"];
+  ntpTimezoneOffset = miscCredsJson["ntpTimezoneOffset"];
+  ntpDaylightOffset = miscCredsJson["ntpDaylightOffset"];
+  const String ssid = miscCredsJson["wifiSSID"];
+  const String password = miscCredsJson["wifiPass"];
+
+  // ================ CONNECT TO WIFI NETWORK ================
   Serial.print("Connecting to wifi");
   WiFi.begin(ssid.c_str(), password.c_str());
   while (WiFi.status() != WL_CONNECTED) {
@@ -80,6 +88,7 @@ void setup() {
     delay(500);
   }
   Serial.println("connected!");
+  configTime(ntpTimezoneOffset, ntpDaylightOffset, ntpServer);
 
   // ================ SETUP MQTT CLIENT ================
   wifiClient.setCACert(awsRootCACert);
@@ -105,6 +114,6 @@ void loop() {
     hhService.reconnect();
   }
   hhService.loop();
-  Serial.println(hhState.readLightSensorBH1750());
-  delay(10000);
+  hhService.publishCurrentSensorsMeasurements();
+  delay(10 * 60 * 1000);
 }
