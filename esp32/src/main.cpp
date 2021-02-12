@@ -4,6 +4,7 @@
 #include <FS.h>
 #include <PubSubClient.h>
 #include <SPIFFS.h>
+#include <TaskScheduler.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <Wire.h>
@@ -18,33 +19,44 @@ char* awsRootCACert;
 char* awsClientCert;
 char* awsClientKey;
 
-const char* ntpServer = "pool.ntp.org";
-int ntpTimezoneOffset = 0;
-int ntpDaylightOffset = 0;
-
-// Create a wifi client that uses SSL client authentication
-WiFiClientSecure wifiClient;
-
-// Create a wifi client that communicates with AWS
-PubSubClient pubsubClient(wifiClient);
-
 // Create an object to interact with the light sensor driver
 BH1750 lightSensorBH1750(HH_I2C_BH1750_ADDR);
 
+// Create a wifi client that uses SSL client authentication
+WiFiClientSecure wifiClient;
+// Create a wifi client that communicates with AWS
+PubSubClient pubsubClient(wifiClient);
+
+// State manager and hardware controller
 HappyHerbsState hhState(lightSensorBH1750, HH_GPIO_LAMP);
+// Service for managing statea and communication with server
 HappyHerbsService hhService(pubsubClient, hhState);
 
+Scheduler taskManager;
+
+Task tReconnectAWSIoT(TASK_SECOND, TASK_FOREVER, []() {
+  if (!hhService.connected()) {
+    hhService.reconnect();
+  }
+  hhService.loop();
+});
+
+Task tPublishCurrentSensorsMeasurements(10 * 60 * 1000, TASK_FOREVER, []() {
+  hhService.publishCurrentSensorsMeasurements();
+});
+
 void setup() {
-  pinMode(HH_GPIO_LAMP, OUTPUT);
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
   Wire.begin(HH_GPIO_BH1750_SDA, HH_GPIO_BH1750_SCL);
 
+  pinMode(HH_GPIO_LAMP, OUTPUT);
+  hhState.writeLampPinID(false);
+
   if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
     Serial.println("Could not begin BH1750 light sensor");
   }
-
   // ================ START FILE SYSTEM AND LOAD CONFIGURATIONS ================
   if (!SPIFFS.begin()) {
     return;
@@ -70,25 +82,25 @@ void setup() {
     return;
   }
 
+  // ================ CONNECT TO WIFI AND SETUP LOCAL TIME ================
   char* miscCreds = loadFile(MISC_CREDS.c_str());
   StaticJsonDocument<512> miscCredsJson;
   deserializeJson(miscCredsJson, miscCreds);
   free(miscCreds);
 
-  ntpTimezoneOffset = miscCredsJson["ntpTimezoneOffset"];
-  ntpDaylightOffset = miscCredsJson["ntpDaylightOffset"];
+  Serial.print("Connecting to wifi");
   const String ssid = miscCredsJson["wifiSSID"];
   const String password = miscCredsJson["wifiPass"];
-
-  // ================ CONNECT TO WIFI NETWORK ================
-  Serial.print("Connecting to wifi");
   WiFi.begin(ssid.c_str(), password.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
   }
   Serial.println("connected!");
-  configTime(ntpTimezoneOffset, ntpDaylightOffset, ntpServer);
+
+  int ntpTimezoneOffset = miscCredsJson["ntpTimezoneOffset"];
+  int ntpDaylightOffset = miscCredsJson["ntpDaylightOffset"];
+  configTime(ntpTimezoneOffset, ntpDaylightOffset, NTP_SERVER.c_str());
 
   // ================ SETUP MQTT CLIENT ================
   wifiClient.setCACert(awsRootCACert);
@@ -105,15 +117,13 @@ void setup() {
     hhService.handleCallback(topic, payload, length);
   });
 
-  // ================ SET THE INITIAL STATE ================
-  hhState.writeLampPinID(false);
+  // ================ SETUP SCHEDULER ================
+  taskManager.init();
+  taskManager.addTask(tReconnectAWSIoT);
+  taskManager.addTask(tPublishCurrentSensorsMeasurements);
+
+  tReconnectAWSIoT.enable();
+  tPublishCurrentSensorsMeasurements.enableDelayed();
 }
 
-void loop() {
-  if (!hhService.connected()) {
-    hhService.reconnect();
-  }
-  hhService.loop();
-  hhService.publishCurrentSensorsMeasurements();
-  delay(10 * 60 * 1000);
-}
+void loop() { taskManager.execute(); }
