@@ -129,8 +129,7 @@ void HappyHerbsService::publishCurrentSensorsMeasurements() {
   StaticJsonDocument<512> sensorsJson;
   sensorsJson["timestamp"] = now;
   sensorsJson["thingsName"] = AWS_THING_NAME;
-  JsonObject payloadObj = sensorsJson.createNestedObject("payload");
-  payloadObj["lightLevel"] = this->hhState->readLightSensorBH1750();
+  sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
 
   char sensorsBuf[512];
   serializeJson(sensorsJson, sensorsBuf);

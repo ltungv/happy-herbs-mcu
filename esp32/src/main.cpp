@@ -123,7 +123,7 @@ void setup() {
   taskManager.addTask(tPublishCurrentSensorsMeasurements);
 
   tReconnectAWSIoT.enable();
-  tPublishCurrentSensorsMeasurements.enableDelayed();
+  tPublishCurrentSensorsMeasurements.enable();
 }
 
 void loop() { taskManager.execute(); }
