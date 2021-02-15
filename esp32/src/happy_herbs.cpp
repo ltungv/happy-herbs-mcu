@@ -31,8 +31,13 @@ float HappyHerbsState::readLightSensorBH1750() {
   return this->lightSensorBH1750->readLightLevel();
 }
 
-HappyHerbsService::HappyHerbsService(PubSubClient &pubsub,
+HappyHerbsService::HappyHerbsService(String &thingName, PubSubClient &pubsub,
                                      HappyHerbsState &hhState) {
+  this->thingName = thingName;
+
+  this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
+  this->topicShadowUpdateDelta = "$aws/things/" + thingName + "/shadow/update/delta";
+
   this->pubsub = &pubsub;
   this->hhState = &hhState;
 }
@@ -53,11 +58,11 @@ bool HappyHerbsService::connected() { return this->pubsub->connected(); }
 void HappyHerbsService::reconnect() {
   Serial.println("Connecting to AWS IoT");
   while (!this->pubsub->connected()) {
-    if (this->pubsub->connect(AWS_THING_NAME.c_str())) {
+    if (this->pubsub->connect(this->thingName.c_str())) {
       Serial.println("-- connected!");
-      if (this->pubsub->subscribe(TOPIC_SHADOW_UPDATE_DELTA.c_str(), 1)) {
+      if (this->pubsub->subscribe(this->topicShadowUpdateDelta.c_str(), 1)) {
         Serial.print("SUBSCRIBED ");
-        Serial.println(TOPIC_SHADOW_UPDATE_DELTA);
+        Serial.println(this->topicShadowUpdateDelta);
       };
     } else {
       Serial.println("-- failed!");
@@ -75,7 +80,7 @@ void HappyHerbsService::reconnect() {
  */
 void HappyHerbsService::handleCallback(char *topic, byte *payload,
                                        unsigned int length) {
-  if (strcmp(topic, TOPIC_SHADOW_UPDATE_DELTA.c_str()) == 0) {
+  if (strcmp(topic, this->topicShadowUpdateDelta.c_str()) == 0) {
     StaticJsonDocument<512> shadowUpdateDeltaJson;
     deserializeJson(shadowUpdateDeltaJson, payload, length);
     this->handleShadowUpdateDelta(shadowUpdateDeltaJson);
@@ -109,10 +114,10 @@ void HappyHerbsService::publishShadowUpdate() {
 
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
-  this->pubsub->publish(TOPIC_SHADOW_UPDATE.c_str(), shadowUpdateBuf);
+  this->pubsub->publish(this->topicShadowUpdate.c_str(), shadowUpdateBuf);
 
   Serial.print("SEND [");
-  Serial.print(TOPIC_SHADOW_UPDATE);
+  Serial.print(this->topicShadowUpdate);
   Serial.print("]");
   Serial.print(" : ");
   Serial.println(shadowUpdateBuf);
@@ -128,7 +133,7 @@ void HappyHerbsService::publishCurrentSensorsMeasurements() {
 
   StaticJsonDocument<512> sensorsJson;
   sensorsJson["timestamp"] = now;
-  sensorsJson["thingsName"] = AWS_THING_NAME;
+  sensorsJson["thingsName"] = this->thingName;
   sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
 
   char sensorsBuf[512];

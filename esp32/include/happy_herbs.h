@@ -30,12 +30,17 @@ class HappyHerbsState {
  */
 class HappyHerbsService {
  private:
+  String thingName;
+
+  String topicShadowUpdate;
+  String topicShadowUpdateDelta;
+
   int lastUpdated = 0;
   PubSubClient *pubsub;
   HappyHerbsState *hhState;
 
  public:
-  HappyHerbsService(PubSubClient &, HappyHerbsState &);
+  HappyHerbsService(String &, PubSubClient &, HappyHerbsState &);
 
   void loop();
   bool connected();

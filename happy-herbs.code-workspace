@@ -2,9 +2,6 @@
 	"folders": [
 		{
 			"path": "esp32"
-		},
-		{
-			"path": "aws_serverless"
 		}
 	],
 	"settings": {}

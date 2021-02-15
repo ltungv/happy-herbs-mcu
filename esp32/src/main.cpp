@@ -30,33 +30,32 @@ PubSubClient pubsubClient(wifiClient);
 // State manager and hardware controller
 HappyHerbsState hhState(lightSensorBH1750, HH_GPIO_LAMP);
 // Service for managing statea and communication with server
-HappyHerbsService hhService(pubsubClient, hhState);
+HappyHerbsService *hhService;
 
 Scheduler taskManager;
 
 Task tReconnectAWSIoT(TASK_SECOND, TASK_FOREVER, []() {
-  if (!hhService.connected()) {
-    hhService.reconnect();
+  if (!hhService->connected()) {
+    hhService->reconnect();
   }
-  hhService.loop();
+  hhService->loop();
 });
 
 Task tPublishCurrentSensorsMeasurements(10 * 60 * 1000, TASK_FOREVER, []() {
-  hhService.publishCurrentSensorsMeasurements();
+  hhService->publishCurrentSensorsMeasurements();
 });
 
 void setup() {
+  pinMode(HH_GPIO_LAMP, OUTPUT);
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
   Wire.begin(HH_GPIO_BH1750_SDA, HH_GPIO_BH1750_SCL);
 
-  pinMode(HH_GPIO_LAMP, OUTPUT);
-  hhState.writeLampPinID(false);
-
   if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
     Serial.println("Could not begin BH1750 light sensor");
   }
+
   // ================ START FILE SYSTEM AND LOAD CONFIGURATIONS ================
   if (!SPIFFS.begin()) {
     return;
@@ -114,8 +113,15 @@ void setup() {
     Serial.print("]");
     Serial.print(" : ");
     Serial.println((char*)payload);
-    hhService.handleCallback(topic, payload, length);
+    hhService->handleCallback(topic, payload, length);
   });
+
+  String awsThingName = loadFile(AWS_THING_NAME.c_str());
+  if (!awsThingName) {
+    return;
+  }
+  hhState.writeLampPinID(false);
+  hhService = new HappyHerbsService(awsThingName, pubsubClient, hhState);
 
   // ================ SETUP SCHEDULER ================
   taskManager.init();
