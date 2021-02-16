@@ -91,6 +91,7 @@ void setup() {
   const String ssid = miscCredsJson["wifiSSID"];
   const String password = miscCredsJson["wifiPass"];
   WiFi.begin(ssid.c_str(), password.c_str());
+  Serial.println(ssid.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
