@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <BH1750.h>
+#include <DHT.h>
 #include <FS.h>
 #include <PubSubClient.h>
 #include <SPIFFS.h>
@@ -21,14 +22,14 @@ char* awsClientKey;
 
 // Create an object to interact with the light sensor driver
 BH1750 lightSensorBH1750(HH_I2C_BH1750_ADDR);
-
+DHT tempMoisSensorDHT(HH_GPIO_DHT, HH_GPIO_DHT_TYPE);
 // Create a wifi client that uses SSL client authentication
 WiFiClientSecure wifiClient;
 // Create a wifi client that communicates with AWS
 PubSubClient pubsubClient(wifiClient);
 
 // State manager and hardware controller
-HappyHerbsState hhState(lightSensorBH1750, HH_GPIO_LAMP, HH_GPIO_PUMP);
+HappyHerbsState hhState(lightSensorBH1750, tempMoisSensorDHT, HH_GPIO_LAMP, HH_GPIO_PUMP, HH_GPIO_MOIS);
 // Service for managing statea and communication with server
 HappyHerbsService *hhService;
 
@@ -48,6 +49,7 @@ Task tPublishCurrentSensorsMeasurements(10 * 60 * 1000, TASK_FOREVER, []() {
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
   pinMode(HH_GPIO_PUMP, OUTPUT);
+  pinMode(HH_GPIO_MOIS, INPUT);
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
@@ -122,6 +124,7 @@ void setup() {
     return;
   }
   hhState.writeLampPinID(false);
+  hhState.writePumpPinID(false);
   hhService = new HappyHerbsService(awsThingName, pubsubClient, hhState);
 
   // ================ SETUP SCHEDULER ================

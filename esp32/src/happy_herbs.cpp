@@ -5,10 +5,13 @@
 #include "constants.h"
 #include "time.h"
 
-HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, int lampPinID, int pumpPinID) {
+HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, DHT &tempHumidSensor, 
+                                int lampPinID, int pumpPinID, int moisSensorPinId) {
   this->lightSensorBH1750 = &lightSensorBH17150;
+  this->tempHumidSensor = &tempHumidSensor;
   this->lampPinID = lampPinID;
   this->pumpPinID = pumpPinID;
+  this->moisSensorPinID = moisSensorPinId;
 }
 
 /**
@@ -38,6 +41,18 @@ void HappyHerbsState::writePumpPinID(bool pumpState){
  */
 float HappyHerbsState::readLightSensorBH1750() {
   return this->lightSensorBH1750->readLightLevel();
+}
+
+float HappyHerbsState::readMoisSensor(){
+  return analogRead(this->moisSensorPinID);
+}
+
+float HappyHerbsState::readTempSensor(){
+  return this->tempHumidSensor->readTemperature();
+}
+
+float HappyHerbsState::readHumidSensor(){
+  return this->tempHumidSensor->readHumidity();
 }
 
 HappyHerbsService::HappyHerbsService(String &thingName, PubSubClient &pubsub,
@@ -147,6 +162,9 @@ void HappyHerbsService::publishCurrentSensorsMeasurements() {
   sensorsJson["timestamp"] = now;
   sensorsJson["thingsName"] = this->thingName;
   sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
+  //sensorsJson["moisture"] = this->hhState->readMoisSensor();
+  sensorsJson["temperature"] = this->hhState->readTempSensor();
+  sensorsJson["humidity"] = this->hhState->readHumidSensor();
 
   char sensorsBuf[512];
   serializeJson(sensorsJson, sensorsBuf);
