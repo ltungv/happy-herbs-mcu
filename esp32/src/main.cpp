@@ -28,7 +28,7 @@ WiFiClientSecure wifiClient;
 PubSubClient pubsubClient(wifiClient);
 
 // State manager and hardware controller
-HappyHerbsState hhState(lightSensorBH1750, HH_GPIO_LAMP);
+HappyHerbsState hhState(lightSensorBH1750, HH_GPIO_LAMP, HH_GPIO_PUMP);
 // Service for managing statea and communication with server
 HappyHerbsService *hhService;
 
@@ -47,6 +47,7 @@ Task tPublishCurrentSensorsMeasurements(10 * 60 * 1000, TASK_FOREVER, []() {
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
+  pinMode(HH_GPIO_PUMP, OUTPUT);
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
@@ -91,7 +92,6 @@ void setup() {
   const String ssid = miscCredsJson["wifiSSID"];
   const String password = miscCredsJson["wifiPass"];
   WiFi.begin(ssid.c_str(), password.c_str());
-  Serial.println(ssid.c_str());
   while (WiFi.status() != WL_CONNECTED) {
     Serial.print(".");
     delay(500);
