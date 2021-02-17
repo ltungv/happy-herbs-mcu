@@ -13,13 +13,16 @@
 class HappyHerbsState {
  private:
   int lampPinID;
+  int pumpPinID;
   BH1750 *lightSensorBH1750;
 
  public:
-  HappyHerbsState(BH1750 &, int);
+  HappyHerbsState(BH1750 &, int, int);
 
   void writeLampPinID(const bool);
   bool readLampPinID();
+  void writePumpPinID(const bool);
+  bool readPumpPinID();
 
   float readLightSensorBH1750();
 };

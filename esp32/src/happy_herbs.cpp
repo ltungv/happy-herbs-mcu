@@ -5,9 +5,10 @@
 #include "constants.h"
 #include "time.h"
 
-HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, int lampPinID) {
+HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, int lampPinID, int pumpPinID) {
   this->lightSensorBH1750 = &lightSensorBH17150;
   this->lampPinID = lampPinID;
+  this->pumpPinID = pumpPinID;
 }
 
 /**
@@ -22,6 +23,14 @@ bool HappyHerbsState::readLampPinID() {
  */
 void HappyHerbsState::writeLampPinID(bool lampState) {
   digitalWrite(this->lampPinID, lampState);
+}
+
+bool HappyHerbsState::readPumpPinID(){
+  return digitalRead(this->pumpPinID) == HIGH;
+}
+
+void HappyHerbsState::writePumpPinID(bool pumpState){
+  digitalWrite(this->pumpPinID, pumpState);
 }
 
 /**
@@ -96,6 +105,8 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   int ts = delta["timestamp"];
   if (ts > this->lastUpdated) {
     bool lampState = delta["state"]["lampState"];
+    bool pumpState = delta["state"]["pumpState"];
+    this->hhState->writePumpPinID(pumpState);
     this->hhState->writeLampPinID(lampState);
     this->lastUpdated = ts;
     this->publishShadowUpdate();
@@ -111,6 +122,7 @@ void HappyHerbsService::publishShadowUpdate() {
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lampState"] = this->hhState->readLampPinID();
+  reportedObj["pumpState"] = this->hhState->readPumpPinID();
 
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
