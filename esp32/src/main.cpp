@@ -22,7 +22,7 @@ char* awsClientKey;
 
 // Create an object to interact with the light sensor driver
 BH1750 lightSensorBH1750(HH_I2C_BH1750_ADDR);
-DHT tempMoisSensorDHT(HH_GPIO_DHT, HH_GPIO_DHT_TYPE);
+DHT tempMoisSensorDHT(HH_GPIO_DHT, DHT11);
 // Create a wifi client that uses SSL client authentication
 WiFiClientSecure wifiClient;
 // Create a wifi client that communicates with AWS
