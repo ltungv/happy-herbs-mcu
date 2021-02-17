@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <BH1750.h>
+#include <DHT.h>
 #include <PubSubClient.h>
 
 /**
@@ -14,10 +15,12 @@ class HappyHerbsState {
  private:
   int lampPinID;
   int pumpPinID;
+  int moisSensorPinID;
+  DHT *tempHumidSensor;
   BH1750 *lightSensorBH1750;
 
  public:
-  HappyHerbsState(BH1750 &, int, int);
+  HappyHerbsState(BH1750 &, DHT &, int, int, int);
 
   void writeLampPinID(const bool);
   bool readLampPinID();
@@ -25,6 +28,9 @@ class HappyHerbsState {
   bool readPumpPinID();
 
   float readLightSensorBH1750();
+  float readMoisSensor();
+  float readTempSensor();
+  float readHumidSensor();
 };
 
 /**

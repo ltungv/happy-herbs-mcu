@@ -5,6 +5,8 @@
 
 const int HH_GPIO_LAMP = LED_BUILTIN;
 const int HH_GPIO_PUMP = 0;
+const int HH_GPIO_DHT = 4;
+const int HH_GPIO_MOIS = 10;
 const int HH_GPIO_BH1750_SDA = 8;
 const int HH_GPIO_BH1750_SCL = 9;
 const int HH_I2C_BH1750_ADDR = 0x23;
