@@ -2,12 +2,10 @@
 #define CONSTANTS_H
 
 #include <Arduino.h>
-#include <DHT.h>
 
 const int HH_GPIO_LAMP = LED_BUILTIN;
 const int HH_GPIO_PUMP = 0;
 const int HH_GPIO_DHT = 4;
-const int HH_GPIO_DHT_TYPE = DHT11;
 const int HH_GPIO_MOIS = 10;
 const int HH_GPIO_BH1750_SDA = 8;
 const int HH_GPIO_BH1750_SCL = 9;
