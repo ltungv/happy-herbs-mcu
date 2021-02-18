@@ -13,6 +13,7 @@
  */
 class HappyHerbsState {
  private:
+  int lightThreshHold, moisThreshHold;
   int lampPinID;
   int pumpPinID;
   int moisSensorPinID;
@@ -20,7 +21,7 @@ class HappyHerbsState {
   BH1750 *lightSensorBH1750;
 
  public:
-  HappyHerbsState(BH1750 &, DHT &, int, int, int);
+  HappyHerbsState(BH1750 &, DHT &, int, int, int, int, int);
 
   void writeLampPinID(const bool);
   bool readLampPinID();
@@ -31,6 +32,11 @@ class HappyHerbsState {
   float readMoisSensor();
   float readTempSensor();
   float readHumidSensor();
+
+  void setLightThreshHold(int);
+  void setMoisThreshHold(int);
+  int getLightThreshHold();
+  int getMoisThreshHold();
 };
 
 /**
