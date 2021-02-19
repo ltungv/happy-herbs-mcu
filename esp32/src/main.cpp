@@ -63,7 +63,8 @@ Task tPumpInterval(15 * 60 * 1000, TASK_FOREVER, [](){
     tPump.restartDelayed();
 });
 
-Task tLampInterval(30 * 60 * 1000, TASK_FOREVER, [](){
+Task tLampInterval(60 * 60 * 1000, TASK_FOREVER, [](){
+  hhState.writeLampPinID(false);
   if(hhState.readLightSensorBH1750() < hhState.getLightThreshHold())
     hhState.writeLampPinID(true);
 });
@@ -150,7 +151,6 @@ void setup() {
   hhService = new HappyHerbsService(awsThingName, pubsubClient, hhState);
 
   // ================ SETUP SCHEDULER ================
-  //taskManager.init();
   taskManager.addTask(tReconnectAWSIoT);
   taskManager.addTask(tPublishCurrentSensorsMeasurements);
   taskManager.addTask(tPumpInterval);

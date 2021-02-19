@@ -7,7 +7,7 @@
 
 HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, DHT &tempHumidSensor, 
                                 int lampPinID, int pumpPinID, int moisSensorPinId,
-                                int lightThreshHold, int moisThreshHold) {
+                                float lightThreshHold, float moisThreshHold) {
   this->lightSensorBH1750 = &lightSensorBH17150;
   this->tempHumidSensor = &tempHumidSensor;
   this->lampPinID = lampPinID;
@@ -58,19 +58,19 @@ float HappyHerbsState::readHumidSensor(){
   return this->tempHumidSensor->readHumidity();
 }
 
-void HappyHerbsState::setLightThreshHold(int lightThreshHold){
+void HappyHerbsState::setLightThreshHold(float lightThreshHold){
   this->lightThreshHold = lightThreshHold;
 }
 
-void HappyHerbsState::setMoisThreshHold(int moisThreshHold){
+void HappyHerbsState::setMoisThreshHold(float moisThreshHold){
   this->moisThreshHold = moisThreshHold;
 }
 
-int HappyHerbsState::getLightThreshHold(){
+float HappyHerbsState::getLightThreshHold(){
   return this->lightThreshHold;
 }
 
-int HappyHerbsState::getMoisThreshHold(){
+float HappyHerbsState::getMoisThreshHold(){
   return this->moisThreshHold;
 }
 
