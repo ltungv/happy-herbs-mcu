@@ -29,22 +29,32 @@ WiFiClientSecure wifiClient;
 PubSubClient pubsubClient(wifiClient);
 
 // State manager and hardware controller
-HappyHerbsState hhState(lightSensorBH1750, tempMoisSensorDHT, HH_GPIO_LAMP, HH_GPIO_PUMP, HH_GPIO_MOIS);
+HappyHerbsState hhState(lightSensorBH1750, tempMoisSensorDHT, HH_GPIO_LAMP,
+                        HH_GPIO_PUMP, HH_GPIO_MOIS);
 // Service for managing statea and communication with server
-HappyHerbsService *hhService;
+HappyHerbsService* hhService;
+
+// ================ SETUP SCHEDULER ================
 
 Scheduler taskManager;
 
-Task tReconnectAWSIoT(TASK_SECOND, TASK_FOREVER, []() {
+void tReconnectAWSIoTCallback() {
   if (!hhService->connected()) {
     hhService->reconnect();
   }
   hhService->loop();
-});
+}
 
-Task tPublishCurrentSensorsMeasurements(10 * 60 * 1000, TASK_FOREVER, []() {
+Task tReconnectAWSIoT(TASK_SECOND, TASK_FOREVER, tReconnectAWSIoTCallback,
+                      &taskManager, true);
+
+void tPublishCurrentSensorsMeasurementsCallback() {
   hhService->publishCurrentSensorsMeasurements();
-});
+}
+
+Task tPublishCurrentSensorsMeasurements(
+    10 * 60 * 1000, TASK_FOREVER, tPublishCurrentSensorsMeasurementsCallback,
+    &taskManager, true);
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -126,14 +136,6 @@ void setup() {
   hhState.writeLampPinID(false);
   hhState.writePumpPinID(false);
   hhService = new HappyHerbsService(awsThingName, pubsubClient, hhState);
-
-  // ================ SETUP SCHEDULER ================
-  taskManager.init();
-  taskManager.addTask(tReconnectAWSIoT);
-  taskManager.addTask(tPublishCurrentSensorsMeasurements);
-
-  tReconnectAWSIoT.enable();
-  tPublishCurrentSensorsMeasurements.enable();
 }
 
 void loop() { taskManager.execute(); }
