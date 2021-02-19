@@ -36,56 +36,31 @@ HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
 HappyHerbsService hhService(hhState, pubsubClient);
 
 // ================ SETUP SCHEDULER ================
-
 Scheduler taskManager;
 
-Task tReconnectAWSIoT(
-    TASK_SECOND, TASK_FOREVER,
-    []() {
-      if (!hhService.connected()) {
-        hhService.reconnect();
-      }
-      hhService.loop();
-    },
-    &taskManager, true);
+void tReconnectAWSIoTCallback();
+Task tReconnectAWSIoT(TASK_SECOND, TASK_FOREVER, &tReconnectAWSIoTCallback,
+                      &taskManager, true);
 
+void tPublishCurrentSensorsMeasurementsCallback();
 Task tPublishCurrentSensorsMeasurements(
-    10 * TASK_MINUTE, TASK_FOREVER,
-    []() { hhService.publishCurrentSensorsMeasurements(); }, &taskManager,
-    true);
-
-Task tPump(
-    3 * TASK_SECOND, TASK_ONCE, NULL, &taskManager, false,
-    []() {
-      Serial.print("Watering for 3 seconds... ");
-      hhState.writePumpPinID(true);
-      hhService.publishShadowUpdate();
-      return true;
-    },
-    []() {
-      Serial.println("\tPump Off");
-      hhState.writePumpPinID(false);
-      hhService.publishShadowUpdate();
-    });
-
-Task tPumpInterval(
-    15 * TASK_MINUTE, TASK_FOREVER,
-    []() {
-      if (hhState.readMoistureSensor() < hhState.getMoistureThreshold())
-        tPump.restartDelayed();
-    },
+    10 * TASK_MINUTE, TASK_FOREVER, &tPublishCurrentSensorsMeasurementsCallback,
     &taskManager, true);
 
-Task tLampInterval(
-    TASK_HOUR, TASK_FOREVER,
-    []() {
-      hhState.writeLampPinID(false);
-      if (hhState.readLightSensorBH1750() < hhState.getLightThreshold())
-        hhState.writeLampPinID(true);
+bool tTurnOnWaterPumpOnEnable();
+void tTurnOnWaterPumpOnDisable();
+Task tTurnOnWaterPump(3 * TASK_SECOND, TASK_ONCE, NULL, &taskManager, false,
+                      &tTurnOnWaterPumpOnEnable, &tTurnOnWaterPumpOnDisable);
 
-      hhService.publishShadowUpdate();
-    },
-    &taskManager, true);
+void tTurnOnWaterPumpBaseOnMoistureCallback();
+Task tTurnOnWaterPumpOnMoisture(15 * TASK_MINUTE, TASK_FOREVER,
+                                &tTurnOnWaterPumpBaseOnMoistureCallback,
+                                &taskManager, true);
+
+void tTurnOnLampBaseOnLightMeterCallback();
+Task tTurnOnLampBaseOnLightMeter(TASK_HOUR, TASK_FOREVER,
+                                 &tTurnOnLampBaseOnLightMeterCallback,
+                                 &taskManager, true);
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -168,3 +143,40 @@ void setup() {
 }
 
 void loop() { taskManager.execute(); }
+
+void tReconnectAWSIoTCallback() {
+  if (!hhService.connected()) {
+    hhService.reconnect();
+  }
+  hhService.loop();
+}
+
+void tPublishCurrentSensorsMeasurementsCallback() {
+  hhService.publishCurrentSensorsMeasurements();
+};
+
+bool tTurnOnWaterPumpOnEnable() {
+  Serial.print("Watering for 3 seconds... ");
+  hhState.writePumpPinID(true);
+  hhService.publishShadowUpdate();
+  return true;
+};
+
+void tTurnOnWaterPumpOnDisable() {
+  Serial.println("\tPump Off");
+  hhState.writePumpPinID(false);
+  hhService.publishShadowUpdate();
+};
+
+void tTurnOnWaterPumpBaseOnMoistureCallback() {
+  if (hhState.readMoistureSensor() < hhState.getMoistureThreshold())
+    tTurnOnWaterPump.restart();
+};
+
+void tTurnOnLampBaseOnLightMeterCallback() {
+  hhState.writeLampPinID(false);
+  if (hhState.readLightSensorBH1750() < hhState.getLightThreshold())
+    hhState.writeLampPinID(true);
+
+  hhService.publishShadowUpdate();
+};
