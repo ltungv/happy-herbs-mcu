@@ -50,12 +50,12 @@ Task tReconnectAWSIoT(
     &taskManager, true);
 
 Task tPublishCurrentSensorsMeasurements(
-    10 * 60 * 1000, TASK_FOREVER,
+    10 * TASK_MINUTE, TASK_FOREVER,
     []() { hhService->publishCurrentSensorsMeasurements(); }, &taskManager,
     true);
 
 Task tPump(
-    3000, TASK_ONCE, NULL, &taskManager, false,
+    3 * TASK_SECOND, TASK_ONCE, NULL, &taskManager, false,
     []() {
       Serial.print("Watering for 3 seconds... ");
       hhState.writePumpPinID(true);
@@ -67,7 +67,7 @@ Task tPump(
     });
 
 Task tPumpInterval(
-    15 * 60 * 1000, TASK_FOREVER,
+    15 * TASK_MINUTE, TASK_FOREVER,
     []() {
       if (hhState.readMoisSensor() < hhState.getMoisThreshHold())
         tPump.restartDelayed();
@@ -75,7 +75,7 @@ Task tPumpInterval(
     &taskManager, true);
 
 Task tLampInterval(
-    60 * 60 * 1000, TASK_FOREVER,
+    TASK_HOUR, TASK_FOREVER,
     []() {
       hhState.writeLampPinID(false);
       if (hhState.readLightSensorBH1750() < hhState.getLightThreshHold())
