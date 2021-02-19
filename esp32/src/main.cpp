@@ -29,8 +29,8 @@ WiFiClientSecure wifiClient;
 PubSubClient pubsubClient(wifiClient);
 
 // State manager and hardware controller
-HappyHerbsState hhState(lightSensorBH1750, tempMoisSensorDHT, HH_GPIO_LAMP,
-                        HH_GPIO_PUMP, HH_GPIO_MOIS);
+HappyHerbsState hhState(lightSensorBH1750, tempMoisSensorDHT, HH_GPIO_LAMP, HH_GPIO_PUMP, HH_GPIO_MOIS,
+                        DEFAULT_LIGHT_THRES, DEFAULT_MOIS_THRES);
 // Service for managing statea and communication with server
 HappyHerbsService* hhService;
 
@@ -55,6 +55,28 @@ void tPublishCurrentSensorsMeasurementsCallback() {
 Task tPublishCurrentSensorsMeasurements(
     10 * 60 * 1000, TASK_FOREVER, tPublishCurrentSensorsMeasurementsCallback,
     &taskManager, true);
+
+Task tPump(3000, TASK_ONCE, NULL, &taskManager, false,
+  [](){
+    Serial.print("Watering for 3 seconds... ");
+    hhState.writePumpPinID(true);
+    return true;
+  },
+  [](){
+    Serial.println("\tPump Off");
+    hhState.writePumpPinID(false);
+});
+
+Task tPumpInterval(15 * 60 * 1000, TASK_FOREVER, [](){
+  if(hhState.readMoisSensor() < hhState.getMoisThreshHold())
+    tPump.restartDelayed();
+});
+
+Task tLampInterval(60 * 60 * 1000, TASK_FOREVER, [](){
+  hhState.writeLampPinID(false);
+  if(hhState.readLightSensorBH1750() < hhState.getLightThreshHold())
+    hhState.writeLampPinID(true);
+});
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -136,6 +158,16 @@ void setup() {
   hhState.writeLampPinID(false);
   hhState.writePumpPinID(false);
   hhService = new HappyHerbsService(awsThingName, pubsubClient, hhState);
+  // ================ SETUP SCHEDULER ================
+  taskManager.addTask(tReconnectAWSIoT);
+  taskManager.addTask(tPublishCurrentSensorsMeasurements);
+  taskManager.addTask(tPumpInterval);
+  taskManager.addTask(tLampInterval);
+
+  tReconnectAWSIoT.enable();
+  tPublishCurrentSensorsMeasurements.enable();
+  tPumpInterval.enable();
+  tLampInterval.enable();
 }
 
 void loop() { taskManager.execute(); }

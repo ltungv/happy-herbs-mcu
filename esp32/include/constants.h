@@ -11,6 +11,9 @@ const int HH_GPIO_BH1750_SDA = 8;
 const int HH_GPIO_BH1750_SCL = 9;
 const int HH_I2C_BH1750_ADDR = 0x23;
 
+const float DEFAULT_LIGHT_THRES = 100;
+const float DEFAULT_MOIS_THRES = 30;
+
 const int SERIAL_BAUD_RATE = 115200;
 const String NTP_SERVER = "pool.ntp.org";
 const String MISC_CREDS = "/creds/misc.json";
