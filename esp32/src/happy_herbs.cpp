@@ -8,7 +8,8 @@
 HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150,
                                  DHT &tempHumidSensorDHT, int lampPinID,
                                  int pumpPinID, int moistureSensorPinId,
-                                float lightThreshold, float moistureThreshold) {
+                                 float lightThreshold,
+                                 float moistureThreshold) {
   this->lightSensorBH1750 = &lightSensorBH17150;
   this->tempHumidSensorDHT = &tempHumidSensorDHT;
   this->lampPinID = lampPinID;
@@ -69,18 +70,14 @@ void HappyHerbsState::setMoistureThreshold(float moistureThreshold) {
 
 float HappyHerbsState::getLightThreshold() { return this->lightThreshold; }
 
-float HappyHerbsState::getMoistureThreshold() { return this->moistureThreshold; }
+float HappyHerbsState::getMoistureThreshold() {
+  return this->moistureThreshold;
+}
 
-HappyHerbsService::HappyHerbsService(String &thingName, PubSubClient &pubsub,
-                                     HappyHerbsState &hhState) {
-  this->thingName = thingName;
-
-  this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
-  this->topicShadowUpdateDelta =
-      "$aws/things/" + thingName + "/shadow/update/delta";
-
-  this->pubsub = &pubsub;
+HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
+                                     PubSubClient &pubsub) {
   this->hhState = &hhState;
+  this->pubsub = &pubsub;
 }
 
 /**
@@ -128,6 +125,13 @@ void HappyHerbsService::handleCallback(char *topic, byte *payload,
     this->handleShadowUpdateDelta(shadowUpdateDeltaJson);
   }
 };
+
+void HappyHerbsService::setThingName(String thingName) {
+  this->thingName = thingName;
+  this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
+  this->topicShadowUpdateDelta =
+      "$aws/things/" + thingName + "/shadow/update/delta";
+}
 
 /**
  * Handle messages from the topic

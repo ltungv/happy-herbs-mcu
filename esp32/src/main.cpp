@@ -33,7 +33,7 @@ HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
                         HH_GPIO_PUMP, HH_GPIO_MOISTURE, DEFAULT_LIGHT_THRESHOLD,
                         DEFAULT_MOISTURE_THRESHOLD);
 // Service for managing statea and communication with server
-HappyHerbsService* hhService;
+HappyHerbsService hhService(hhState, pubsubClient);
 
 // ================ SETUP SCHEDULER ================
 
@@ -42,16 +42,16 @@ Scheduler taskManager;
 Task tReconnectAWSIoT(
     TASK_SECOND, TASK_FOREVER,
     []() {
-      if (!hhService->connected()) {
-        hhService->reconnect();
+      if (!hhService.connected()) {
+        hhService.reconnect();
       }
-      hhService->loop();
+      hhService.loop();
     },
     &taskManager, true);
 
 Task tPublishCurrentSensorsMeasurements(
     10 * TASK_MINUTE, TASK_FOREVER,
-    []() { hhService->publishCurrentSensorsMeasurements(); }, &taskManager,
+    []() { hhService.publishCurrentSensorsMeasurements(); }, &taskManager,
     true);
 
 Task tPump(
@@ -59,13 +59,13 @@ Task tPump(
     []() {
       Serial.print("Watering for 3 seconds... ");
       hhState.writePumpPinID(true);
-      hhService->publishShadowUpdate();
+      hhService.publishShadowUpdate();
       return true;
     },
     []() {
       Serial.println("\tPump Off");
       hhState.writePumpPinID(false);
-      hhService->publishShadowUpdate();
+      hhService.publishShadowUpdate();
     });
 
 Task tPumpInterval(
@@ -83,7 +83,7 @@ Task tLampInterval(
       if (hhState.readLightSensorBH1750() < hhState.getLightThreshold())
         hhState.writeLampPinID(true);
 
-      hhService->publishShadowUpdate();
+      hhService.publishShadowUpdate();
     },
     &taskManager, true);
 
@@ -96,33 +96,12 @@ void setup() {
     ;
   Wire.begin(HH_GPIO_BH1750_SDA, HH_GPIO_BH1750_SCL);
 
-  if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
-    Serial.println("Could not begin BH1750 light sensor");
-  }
-
-  // ================ START FILE SYSTEM AND LOAD CONFIGURATIONS ================
   if (!SPIFFS.begin()) {
     return;
   }
 
-  awsEndpoint = loadFile(AWS_IOT_ENDPOINT.c_str());
-  if (!awsEndpoint) {
-    return;
-  }
-
-  awsRootCACert = loadFile(AWS_ROOTCA_CERT.c_str());
-  if (!awsRootCACert) {
-    return;
-  }
-
-  awsClientCert = loadFile(AWS_CLIENT_CERT.c_str());
-  if (!awsClientCert) {
-    return;
-  }
-
-  awsClientKey = loadFile(AWS_CLIENT_KEY.c_str());
-  if (!awsClientKey) {
-    return;
+  if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
+    Serial.println("Could not begin BH1750 light sensor");
   }
 
   // ================ CONNECT TO WIFI AND SETUP LOCAL TIME ================
@@ -146,6 +125,23 @@ void setup() {
   configTime(ntpTimezoneOffset, ntpDaylightOffset, NTP_SERVER.c_str());
 
   // ================ SETUP MQTT CLIENT ================
+  awsEndpoint = loadFile(AWS_IOT_ENDPOINT.c_str());
+  if (!awsEndpoint) {
+    return;
+  }
+  awsRootCACert = loadFile(AWS_ROOTCA_CERT.c_str());
+  if (!awsRootCACert) {
+    return;
+  }
+  awsClientCert = loadFile(AWS_CLIENT_CERT.c_str());
+  if (!awsClientCert) {
+    return;
+  }
+  awsClientKey = loadFile(AWS_CLIENT_KEY.c_str());
+  if (!awsClientKey) {
+    return;
+  }
+
   wifiClient.setCACert(awsRootCACert);
   wifiClient.setCertificate(awsClientCert);
   wifiClient.setPrivateKey(awsClientKey);
@@ -157,16 +153,18 @@ void setup() {
     Serial.print("]");
     Serial.print(" : ");
     Serial.println((char*)payload);
-    hhService->handleCallback(topic, payload, length);
+    hhService.handleCallback(topic, payload, length);
   });
 
+  // ================ SETUP STATE AND SERVICE ================
   String awsThingName = loadFile(AWS_THING_NAME.c_str());
   if (!awsThingName) {
     return;
   }
+  hhService.setThingName(awsThingName);
+
   hhState.writeLampPinID(false);
   hhState.writePumpPinID(false);
-  hhService = new HappyHerbsService(awsThingName, pubsubClient, hhState);
 }
 
 void loop() { taskManager.execute(); }

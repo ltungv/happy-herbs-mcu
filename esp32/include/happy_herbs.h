@@ -46,21 +46,22 @@ class HappyHerbsState {
 class HappyHerbsService {
  private:
   String thingName;
-
   String topicShadowUpdate;
   String topicShadowUpdateDelta;
 
-  int lastUpdated = 0;
-  PubSubClient *pubsub;
   HappyHerbsState *hhState;
+  PubSubClient *pubsub;
+  int lastUpdated = 0;
 
  public:
-  HappyHerbsService(String &, PubSubClient &, HappyHerbsState &);
+  HappyHerbsService(HappyHerbsState &, PubSubClient &);
 
   void loop();
   bool connected();
   void reconnect();
   void handleCallback(char *, byte *, unsigned int);
+
+  void setThingName(String);
 
   void handleShadowUpdateDelta(const JsonDocument &);
   void publishShadowUpdate();
