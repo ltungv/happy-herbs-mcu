@@ -59,11 +59,13 @@ Task tPump(
     []() {
       Serial.print("Watering for 3 seconds... ");
       hhState.writePumpPinID(true);
+      hhService->publishShadowUpdate();
       return true;
     },
     []() {
       Serial.println("\tPump Off");
       hhState.writePumpPinID(false);
+      hhService->publishShadowUpdate();
     });
 
 Task tPumpInterval(
@@ -80,6 +82,8 @@ Task tLampInterval(
       hhState.writeLampPinID(false);
       if (hhState.readLightSensorBH1750() < hhState.getLightThreshHold())
         hhState.writeLampPinID(true);
+
+      hhService->publishShadowUpdate();
     },
     &taskManager, true);
 
