@@ -4,6 +4,9 @@
 #include <Arduino.h>
 
 const int HH_GPIO_LAMP = LED_BUILTIN;
+const int HH_GPIO_PUMP = 0;
+const int HH_GPIO_DHT = 4;
+const int HH_GPIO_MOIS = 10;
 const int HH_GPIO_BH1750_SDA = 8;
 const int HH_GPIO_BH1750_SCL = 9;
 const int HH_I2C_BH1750_ADDR = 0x23;
@@ -14,7 +17,7 @@ const String MISC_CREDS = "/creds/misc.json";
 
 const String AWS_THING_NAME = "/creds/aws/iot-thingname.txt";
 const String AWS_IOT_ENDPOINT = "/creds/aws/iot-endpoint.txt";
-const String AWS_ROOTCA_CERT = "/creds/aws/rootca-cert.crt";
+const String AWS_ROOTCA_CERT = "/creds/aws/rootca-cert.pem";
 const String AWS_CLIENT_CERT = "/creds/aws/device-cert.crt";
 const String AWS_CLIENT_KEY = "/creds/aws/device-key.key";
 

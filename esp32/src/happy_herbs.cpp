@@ -5,9 +5,13 @@
 #include "constants.h"
 #include "time.h"
 
-HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, int lampPinID) {
+HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, DHT &tempHumidSensor, 
+                                int lampPinID, int pumpPinID, int moisSensorPinId) {
   this->lightSensorBH1750 = &lightSensorBH17150;
+  this->tempHumidSensor = &tempHumidSensor;
   this->lampPinID = lampPinID;
+  this->pumpPinID = pumpPinID;
+  this->moisSensorPinID = moisSensorPinId;
 }
 
 /**
@@ -24,11 +28,31 @@ void HappyHerbsState::writeLampPinID(bool lampState) {
   digitalWrite(this->lampPinID, lampState);
 }
 
+bool HappyHerbsState::readPumpPinID(){
+  return digitalRead(this->pumpPinID) == HIGH;
+}
+
+void HappyHerbsState::writePumpPinID(bool pumpState){
+  digitalWrite(this->pumpPinID, pumpState);
+}
+
 /**
  * Reads the value given from the sensor
  */
 float HappyHerbsState::readLightSensorBH1750() {
   return this->lightSensorBH1750->readLightLevel();
+}
+
+float HappyHerbsState::readMoisSensor(){
+  return analogRead(this->moisSensorPinID);
+}
+
+float HappyHerbsState::readTempSensor(){
+  return this->tempHumidSensor->readTemperature();
+}
+
+float HappyHerbsState::readHumidSensor(){
+  return this->tempHumidSensor->readHumidity();
 }
 
 HappyHerbsService::HappyHerbsService(String &thingName, PubSubClient &pubsub,
@@ -96,6 +120,8 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   int ts = delta["timestamp"];
   if (ts > this->lastUpdated) {
     bool lampState = delta["state"]["lampState"];
+    bool pumpState = delta["state"]["pumpState"];
+    this->hhState->writePumpPinID(pumpState);
     this->hhState->writeLampPinID(lampState);
     this->lastUpdated = ts;
     this->publishShadowUpdate();
@@ -111,6 +137,7 @@ void HappyHerbsService::publishShadowUpdate() {
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lampState"] = this->hhState->readLampPinID();
+  reportedObj["pumpState"] = this->hhState->readPumpPinID();
 
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
@@ -135,6 +162,9 @@ void HappyHerbsService::publishCurrentSensorsMeasurements() {
   sensorsJson["timestamp"] = now;
   sensorsJson["thingsName"] = this->thingName;
   sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
+  //sensorsJson["moisture"] = this->hhState->readMoisSensor();
+  sensorsJson["temperature"] = this->hhState->readTempSensor();
+  sensorsJson["humidity"] = this->hhState->readHumidSensor();
 
   char sensorsBuf[512];
   serializeJson(sensorsJson, sensorsBuf);
