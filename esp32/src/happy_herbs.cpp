@@ -63,7 +63,7 @@ void HappyHerbsState::setLightThreshold(float lightThreshold) {
   this->lightThreshold = lightThreshold;
 }
 
-void HappyHerbsState::setMoistureThreshold(float moistureThreshHold) {
+void HappyHerbsState::setMoistureThreshold(float moistureThreshold) {
   this->moistureThreshold = moistureThreshold;
 }
 
@@ -140,12 +140,12 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
     bool lampState = delta["state"]["lampState"];
     bool pumpState = delta["state"]["pumpState"];
     int lightThreshold = delta["state"]["lightThreshold"];
-    int pumpThreshHold = delta["state"]["pumpThreshHold"];
+    int pumpThreshold = delta["state"]["pumpThreshold"];
 
     this->hhState->writePumpPinID(pumpState);
     this->hhState->writeLampPinID(lampState);
     this->hhState->setLightThreshold(lightThreshold);
-    this->hhState->setMoistureThreshold(pumpThreshHold);
+    this->hhState->setMoistureThreshold(pumpThreshold);
     this->lastUpdated = ts;
     this->publishShadowUpdate();
   }
@@ -162,7 +162,7 @@ void HappyHerbsService::publishShadowUpdate() {
   reportedObj["lampState"] = this->hhState->readLampPinID();
   reportedObj["pumpState"] = this->hhState->readPumpPinID();
   reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
-  reportedObj["moistureThreshHold"] = this->hhState->getMoistureThreshold();
+  reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
 
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
