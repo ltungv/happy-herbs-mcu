@@ -5,8 +5,9 @@
 #include "constants.h"
 #include "time.h"
 
-HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, DHT &tempHumidSensor, 
-                                int lampPinID, int pumpPinID, int moisSensorPinId,
+HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150,
+                                 DHT &tempHumidSensor, int lampPinID,
+                                 int pumpPinID, int moisSensorPinId,
                                 float lightThreshHold, float moisThreshHold) {
   this->lightSensorBH1750 = &lightSensorBH17150;
   this->tempHumidSensor = &tempHumidSensor;
@@ -31,11 +32,11 @@ void HappyHerbsState::writeLampPinID(bool lampState) {
   digitalWrite(this->lampPinID, lampState);
 }
 
-bool HappyHerbsState::readPumpPinID(){
+bool HappyHerbsState::readPumpPinID() {
   return digitalRead(this->pumpPinID) == HIGH;
 }
 
-void HappyHerbsState::writePumpPinID(bool pumpState){
+void HappyHerbsState::writePumpPinID(bool pumpState) {
   digitalWrite(this->pumpPinID, pumpState);
 }
 
@@ -46,40 +47,37 @@ float HappyHerbsState::readLightSensorBH1750() {
   return this->lightSensorBH1750->readLightLevel();
 }
 
-float HappyHerbsState::readMoisSensor(){
+float HappyHerbsState::readMoisSensor() {
   return analogRead(this->moisSensorPinID);
 }
 
-float HappyHerbsState::readTempSensor(){
+float HappyHerbsState::readTempSensor() {
   return this->tempHumidSensor->readTemperature();
 }
 
-float HappyHerbsState::readHumidSensor(){
+float HappyHerbsState::readHumidSensor() {
   return this->tempHumidSensor->readHumidity();
 }
 
-void HappyHerbsState::setLightThreshHold(float lightThreshHold){
+void HappyHerbsState::setLightThreshHold(float lightThreshHold) {
   this->lightThreshHold = lightThreshHold;
 }
 
-void HappyHerbsState::setMoisThreshHold(float moisThreshHold){
+void HappyHerbsState::setMoisThreshHold(float moisThreshHold) {
   this->moisThreshHold = moisThreshHold;
 }
 
-float HappyHerbsState::getLightThreshHold(){
-  return this->lightThreshHold;
-}
+float HappyHerbsState::getLightThreshHold() { return this->lightThreshHold; }
 
-float HappyHerbsState::getMoisThreshHold(){
-  return this->moisThreshHold;
-}
+float HappyHerbsState::getMoisThreshHold() { return this->moisThreshHold; }
 
 HappyHerbsService::HappyHerbsService(String &thingName, PubSubClient &pubsub,
                                      HappyHerbsState &hhState) {
   this->thingName = thingName;
 
   this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
-  this->topicShadowUpdateDelta = "$aws/things/" + thingName + "/shadow/update/delta";
+  this->topicShadowUpdateDelta =
+      "$aws/things/" + thingName + "/shadow/update/delta";
 
   this->pubsub = &pubsub;
   this->hhState = &hhState;
@@ -188,7 +186,7 @@ void HappyHerbsService::publishCurrentSensorsMeasurements() {
   sensorsJson["timestamp"] = now;
   sensorsJson["thingsName"] = this->thingName;
   sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
-  //sensorsJson["moisture"] = this->hhState->readMoisSensor();
+  // sensorsJson["moisture"] = this->hhState->readMoisSensor();
   sensorsJson["temperature"] = this->hhState->readTempSensor();
   sensorsJson["humidity"] = this->hhState->readHumidSensor();
 
