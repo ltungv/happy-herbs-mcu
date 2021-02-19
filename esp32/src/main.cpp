@@ -22,16 +22,16 @@ char* awsClientKey;
 
 // Create an object to interact with the light sensor driver
 BH1750 lightSensorBH1750(HH_I2C_BH1750_ADDR);
-DHT tempMoisSensorDHT(HH_GPIO_DHT, DHT11);
+DHT tempHumidSensorDHT(HH_GPIO_DHT, DHT11);
 // Create a wifi client that uses SSL client authentication
 WiFiClientSecure wifiClient;
 // Create a wifi client that communicates with AWS
 PubSubClient pubsubClient(wifiClient);
 
 // State manager and hardware controller
-HappyHerbsState hhState(lightSensorBH1750, tempMoisSensorDHT, HH_GPIO_LAMP,
-                        HH_GPIO_PUMP, HH_GPIO_MOIS, DEFAULT_LIGHT_THRES,
-                        DEFAULT_MOIS_THRES);
+HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
+                        HH_GPIO_PUMP, HH_GPIO_MOISTURE, DEFAULT_LIGHT_THRESHOLD,
+                        DEFAULT_MOISTURE_THRESHOLD);
 // Service for managing statea and communication with server
 HappyHerbsService* hhService;
 
@@ -71,7 +71,7 @@ Task tPump(
 Task tPumpInterval(
     15 * TASK_MINUTE, TASK_FOREVER,
     []() {
-      if (hhState.readMoisSensor() < hhState.getMoisThreshHold())
+      if (hhState.readMoistureSensor() < hhState.getMoistureThreshold())
         tPump.restartDelayed();
     },
     &taskManager, true);
@@ -80,7 +80,7 @@ Task tLampInterval(
     TASK_HOUR, TASK_FOREVER,
     []() {
       hhState.writeLampPinID(false);
-      if (hhState.readLightSensorBH1750() < hhState.getLightThreshHold())
+      if (hhState.readLightSensorBH1750() < hhState.getLightThreshold())
         hhState.writeLampPinID(true);
 
       hhService->publishShadowUpdate();
@@ -90,7 +90,7 @@ Task tLampInterval(
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
   pinMode(HH_GPIO_PUMP, OUTPUT);
-  pinMode(HH_GPIO_MOIS, INPUT);
+  pinMode(HH_GPIO_MOISTURE, INPUT);
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
