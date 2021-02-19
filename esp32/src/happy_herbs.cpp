@@ -6,12 +6,15 @@
 #include "time.h"
 
 HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150, DHT &tempHumidSensor, 
-                                int lampPinID, int pumpPinID, int moisSensorPinId) {
+                                int lampPinID, int pumpPinID, int moisSensorPinId,
+                                float lightThreshHold, float moisThreshHold) {
   this->lightSensorBH1750 = &lightSensorBH17150;
   this->tempHumidSensor = &tempHumidSensor;
   this->lampPinID = lampPinID;
   this->pumpPinID = pumpPinID;
   this->moisSensorPinID = moisSensorPinId;
+  this->lightThreshHold = lightThreshHold;
+  this->moisThreshHold = moisThreshHold;
 }
 
 /**
@@ -53,6 +56,22 @@ float HappyHerbsState::readTempSensor(){
 
 float HappyHerbsState::readHumidSensor(){
   return this->tempHumidSensor->readHumidity();
+}
+
+void HappyHerbsState::setLightThreshHold(float lightThreshHold){
+  this->lightThreshHold = lightThreshHold;
+}
+
+void HappyHerbsState::setMoisThreshHold(float moisThreshHold){
+  this->moisThreshHold = moisThreshHold;
+}
+
+float HappyHerbsState::getLightThreshHold(){
+  return this->lightThreshHold;
+}
+
+float HappyHerbsState::getMoisThreshHold(){
+  return this->moisThreshHold;
 }
 
 HappyHerbsService::HappyHerbsService(String &thingName, PubSubClient &pubsub,
@@ -121,8 +140,13 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   if (ts > this->lastUpdated) {
     bool lampState = delta["state"]["lampState"];
     bool pumpState = delta["state"]["pumpState"];
+    int lightThreshHold = delta["state"]["lightThreshHold"];
+    int pumpThreshHold = delta["state"]["pumpThreshHold"];
+
     this->hhState->writePumpPinID(pumpState);
     this->hhState->writeLampPinID(lampState);
+    this->hhState->setLightThreshHold(lightThreshHold);
+    this->hhState->setMoisThreshHold(pumpThreshHold);
     this->lastUpdated = ts;
     this->publishShadowUpdate();
   }
@@ -138,6 +162,8 @@ void HappyHerbsService::publishShadowUpdate() {
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lampState"] = this->hhState->readLampPinID();
   reportedObj["pumpState"] = this->hhState->readPumpPinID();
+  reportedObj["lightThreshHold"] = this->hhState->getLightThreshHold();
+  reportedObj["moisThreshHold"] = this->hhState->getMoisThreshHold();
 
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
