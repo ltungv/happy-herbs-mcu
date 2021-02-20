@@ -38,19 +38,45 @@ HappyHerbsService hhService(hhState, pubsubClient);
 // ================ SETUP SCHEDULER ================
 Scheduler taskManager;
 
-void tReconnectAWSIoTCallback();
-Task tReconnectAWSIoT(TASK_SECOND, TASK_FOREVER, &tReconnectAWSIoTCallback,
-                      &taskManager, true);
+// ================ SETUP SCHEDULER: ONE TIME TASKS ================
+void tPublishShadowUpdateCallback();
+bool tPublishShadowUpdateOnEnable();
+Task tPublishShadowUpdate(TASK_IMMEDIATE, TASK_ONCE,
+                          &tPublishShadowUpdateCallback, &taskManager, false,
+                          &tPublishShadowUpdateOnEnable, NULL);
 
-void tPublishCurrentSensorsMeasurementsCallback();
-Task tPublishCurrentSensorsMeasurements(
-    10 * TASK_MINUTE, TASK_FOREVER, &tPublishCurrentSensorsMeasurementsCallback,
-    &taskManager, true);
+void tPublishSensorsMeasurementsCallback();
+bool tPublishSensorsMeasurementsOnEnable();
+Task tPublishSensorsMeasurements(TASK_IMMEDIATE, TASK_ONCE,
+                                 &tPublishSensorsMeasurementsCallback,
+                                 &taskManager, false,
+                                 &tPublishSensorsMeasurementsOnEnable, NULL);
 
 bool tTurnOnWaterPumpOnEnable();
 void tTurnOnWaterPumpOnDisable();
 Task tTurnOnWaterPump(3 * TASK_SECOND, TASK_ONCE, NULL, &taskManager, false,
                       &tTurnOnWaterPumpOnEnable, &tTurnOnWaterPumpOnDisable);
+
+// ================ SETUP SCHEDULER: PEDIODIC TASKS ================
+void tHappyHerbsServiceReconnectCallback();
+bool tHappyHerbsServiceReconnectOnEnable();
+void tHappyHerbsServiceReconnectOnDisable();
+Task tHappyHerbsServiceReconnect(5 * TASK_SECOND, TASK_FOREVER,
+                                 &tHappyHerbsServiceReconnectCallback,
+                                 &taskManager, true,
+                                 &tHappyHerbsServiceReconnectOnEnable,
+                                 &tHappyHerbsServiceReconnectOnDisable);
+
+void tHappyHerbsServiceLoopCallback();
+bool tHappyHerbsServiceLoopOnEnable();
+Task tHappyHerbsServiceLoop(TASK_IMMEDIATE, TASK_FOREVER,
+                            &tHappyHerbsServiceLoopCallback, &taskManager, true,
+                            &tHappyHerbsServiceLoopOnEnable, NULL);
+
+void tPeriodicSensorsMeasurementsPublishCallback();
+Task tPeriodicSensorsMeasurementsPublish(
+    10 * TASK_MINUTE, TASK_FOREVER,
+    &tPeriodicSensorsMeasurementsPublishCallback, &taskManager, true);
 
 void tTurnOnWaterPumpBaseOnMoistureCallback();
 Task tTurnOnWaterPumpOnMoisture(15 * TASK_MINUTE, TASK_FOREVER,
@@ -144,28 +170,21 @@ void setup() {
 
 void loop() { taskManager.execute(); }
 
-void tReconnectAWSIoTCallback() {
-  if (!hhService.connected()) {
-    hhService.reconnect();
-  }
-  hhService.loop();
-}
+// ================ PERIODIC TASKS ================
+void tHappyHerbsServiceReconnectCallback() { hhService.reconnect(); }
 
-void tPublishCurrentSensorsMeasurementsCallback() {
-  hhService.publishCurrentSensorsMeasurements();
+bool tHappyHerbsServiceReconnectOnEnable() { return !hhService.connected(); }
+
+void tHappyHerbsServiceReconnectOnDisable() {
+  if (hhService.connected()) tPublishShadowUpdate.restart();
 };
 
-bool tTurnOnWaterPumpOnEnable() {
-  Serial.print("Watering for 3 seconds... ");
-  hhState.writePumpPinID(true);
-  hhService.publishShadowUpdate();
-  return true;
-};
+void tHappyHerbsServiceLoopCallback() { hhService.loop(); };
 
-void tTurnOnWaterPumpOnDisable() {
-  Serial.println("\tPump Off");
-  hhState.writePumpPinID(false);
-  hhService.publishShadowUpdate();
+bool tHappyHerbsServiceLoopOnEnable() { return hhService.connected(); };
+
+void tPeriodicSensorsMeasurementsPublishCallback() {
+  tPublishSensorsMeasurements.restart();
 };
 
 void tTurnOnWaterPumpBaseOnMoistureCallback() {
@@ -178,5 +197,29 @@ void tTurnOnLampBaseOnLightMeterCallback() {
   if (hhState.readLightSensorBH1750() < hhState.getLightThreshold())
     hhState.writeLampPinID(true);
 
-  hhService.publishShadowUpdate();
+  tPublishShadowUpdate.restart();
+};
+
+// ================ ONE TIME TASKS ================
+void tPublishShadowUpdateCallback() { hhService.publishShadowUpdate(); };
+
+bool tPublishShadowUpdateOnEnable() { return hhService.connected(); };
+
+void tPublishSensorsMeasurementsCallback() {
+  hhService.publishSensorsMeasurements();
+};
+
+bool tPublishSensorsMeasurementsOnEnable() { return hhService.connected(); };
+
+bool tTurnOnWaterPumpOnEnable() {
+  Serial.print("Watering for 3 seconds... ");
+  hhState.writePumpPinID(true);
+  tPublishShadowUpdate.restart();
+  return true;
+};
+
+void tTurnOnWaterPumpOnDisable() {
+  Serial.println("\tPump Off");
+  hhState.writePumpPinID(false);
+  tPublishShadowUpdate.restart();
 };

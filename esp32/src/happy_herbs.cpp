@@ -94,23 +94,17 @@ bool HappyHerbsService::connected() { return this->pubsub->connected(); }
  * Try to recconect to AWS IoT
  */
 void HappyHerbsService::reconnect() {
-  Serial.println("Connecting to AWS IoT");
+  Serial.print("Connecting to AWS IoT @");
   Serial.println(this->thingName);
-  while (!this->pubsub->connected()) {
-    if (this->pubsub->connect(this->thingName.c_str())) {
-      Serial.println("-- connected!");
-      if (this->pubsub->subscribe(this->topicShadowUpdateDelta.c_str(), 1)) {
-        Serial.print("SUBSCRIBED ");
-        Serial.println(this->topicShadowUpdateDelta);
-      };
-    } else {
-      Serial.println("-- failed!");
-      delay(5000);
-    }
+  if (this->pubsub->connect(this->thingName.c_str())) {
+    Serial.println("-- connected!");
+    if (this->pubsub->subscribe(this->topicShadowUpdateDelta.c_str(), 1)) {
+      Serial.print("SUBSCRIBED ");
+      Serial.println(this->topicShadowUpdateDelta);
+    };
+  } else {
+    Serial.println("-- failed!");
   }
-
-  delay(500);
-  this->publishShadowUpdate();
 }
 
 /**
@@ -179,7 +173,7 @@ void HappyHerbsService::publishShadowUpdate() {
   Serial.println(shadowUpdateBuf);
 }
 
-void HappyHerbsService::publishCurrentSensorsMeasurements() {
+void HappyHerbsService::publishSensorsMeasurements() {
   time_t now;
   struct tm timeinfo;
   if (!getLocalTime(&timeinfo)) {
