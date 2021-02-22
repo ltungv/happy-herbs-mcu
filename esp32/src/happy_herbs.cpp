@@ -145,8 +145,8 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   if (ts > this->lastUpdated) {
     bool lampState = delta["state"]["lampState"];
     bool pumpState = delta["state"]["pumpState"];
-    int lightThreshold = delta["state"]["lightThreshold"];
-    int pumpThreshold = delta["state"]["pumpThreshold"];
+    float lightThreshold = delta["state"]["lightThreshold"];
+    float pumpThreshold = delta["state"]["pumpThreshold"];
 
     this->hhState->writePumpPinID(pumpState);
     this->hhState->writeLampPinID(lampState);
