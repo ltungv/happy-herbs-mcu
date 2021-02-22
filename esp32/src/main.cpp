@@ -64,7 +64,8 @@ Task tHappyHerbsServiceReconnect(5 * TASK_SECOND, TASK_FOREVER,
 
 void tHappyHerbsServiceLoopCallback();
 Task tHappyHerbsServiceLoop(TASK_IMMEDIATE, TASK_FOREVER,
-                            &tHappyHerbsServiceLoopCallback, &taskManager, true);
+                            &tHappyHerbsServiceLoopCallback, &taskManager,
+                            true);
 
 void tPeriodicSensorsMeasurementsPublishCallback();
 Task tPeriodicSensorsMeasurementsPublish(
@@ -72,12 +73,12 @@ Task tPeriodicSensorsMeasurementsPublish(
     &tPeriodicSensorsMeasurementsPublishCallback, &taskManager, true);
 
 void tTurnOnWaterPumpBaseOnMoistureCallback();
-Task tTurnOnWaterPumpOnMoisture(TASK_MINUTE, TASK_FOREVER,
+Task tTurnOnWaterPumpOnMoisture(15 * TASK_MINUTE, TASK_FOREVER,
                                 &tTurnOnWaterPumpBaseOnMoistureCallback,
                                 &taskManager, true);
 
 void tTurnOnLampBaseOnLightMeterCallback();
-Task tTurnOnLampBaseOnLightMeter(TASK_MINUTE, TASK_FOREVER,
+Task tTurnOnLampBaseOnLightMeter(30 * TASK_MINUTE, TASK_FOREVER,
                                  &tTurnOnLampBaseOnLightMeterCallback,
                                  &taskManager, true);
 
