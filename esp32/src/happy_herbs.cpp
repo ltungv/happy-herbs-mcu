@@ -139,6 +139,7 @@ void HappyHerbsService::setThingName(String thingName) {
 void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   int ts = delta["timestamp"];
   if (ts > this->lastUpdated) {
+    // TODO: only update peripherals if user chooses to control the system manually
     bool lampState = delta["state"]["lampState"];
     bool pumpState = delta["state"]["pumpState"];
     float lightThreshold = delta["state"]["lightThreshold"];
