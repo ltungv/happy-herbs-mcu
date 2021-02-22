@@ -95,7 +95,7 @@ void setup() {
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
-  Wire.begin(HH_GPIO_BH1750_SDA, HH_GPIO_BH1750_SCL);
+  Wire.begin(I2C_SDA0, I2C_SCL0);
 
   if (!SPIFFS.begin()) {
     return;
