@@ -48,8 +48,16 @@ float HappyHerbsState::readLightSensorBH1750() {
   return this->lightSensorBH1750->readLightLevel();
 }
 
+/**
+ * NOTE: Due to an issue related to analogRead() causing WiFi to disconnect,
+ * this function does not return the real analog readings of the pin.
+ *
+ * TODO: Implement the function when the issue on github is resolved
+ * (https://github.com/espressif/arduino-esp32/issues/4844)
+ */
 float HappyHerbsState::readMoistureSensor() {
-  return analogRead(this->moistureSensorPinID);
+  // return analogRead(this->moistureSensorPinID);
+  return 0;
 }
 
 float HappyHerbsState::readTemperatureSensor() {

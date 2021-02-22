@@ -78,17 +78,10 @@ Task tPeriodicSensorsMeasurementsPublish(
     10 * TASK_MINUTE, TASK_FOREVER,
     &tPeriodicSensorsMeasurementsPublishCallback, &taskManager, true);
 
-/**
- * NOTE: Due to an issue related to analogRead() causing WiFi to disconnect,
- * this task is disabled
- *
- * TODO: Enable the task when the issue on github is resolved
- * (https://github.com/espressif/arduino-esp32/issues/4844)
- */
 void tTurnOnWaterPumpBaseOnMoistureCallback();
 Task tTurnOnWaterPumpOnMoisture(TASK_MINUTE, TASK_FOREVER,
                                 &tTurnOnWaterPumpBaseOnMoistureCallback,
-                                &taskManager, false);
+                                &taskManager, true);
 
 void tTurnOnLampBaseOnLightMeterCallback();
 Task tTurnOnLampBaseOnLightMeter(TASK_MINUTE, TASK_FOREVER,
