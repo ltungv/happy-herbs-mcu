@@ -30,8 +30,7 @@ PubSubClient pubsubClient(wifiClient);
 
 // State manager and hardware controller
 HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
-                        HH_GPIO_PUMP, HH_GPIO_MOISTURE, DEFAULT_LIGHT_THRESHOLD,
-                        DEFAULT_MOISTURE_THRESHOLD);
+                        HH_GPIO_PUMP, HH_GPIO_MOISTURE);
 // Service for managing statea and communication with server
 HappyHerbsService hhService(hhState, pubsubClient);
 
@@ -166,6 +165,8 @@ void setup() {
 
   hhState.writeLampPinID(false);
   hhState.writePumpPinID(false);
+  hhState.setLightThreshold(DEFAULT_LIGHT_THRESHOLD);
+  hhState.setMoistureThreshold(DEFAULT_MOISTURE_THRESHOLD);
 }
 
 void loop() { taskManager.execute(); }

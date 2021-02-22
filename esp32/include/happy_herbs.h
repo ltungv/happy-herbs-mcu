@@ -13,7 +13,8 @@
  */
 class HappyHerbsState {
  private:
-  float lightThreshold, moistureThreshold;
+  float lightThreshold = 0.0;
+  float moistureThreshold = 0.0;
   int lampPinID;
   int pumpPinID;
   int moistureSensorPinID;
@@ -21,7 +22,7 @@ class HappyHerbsState {
   BH1750 *lightSensorBH1750;
 
  public:
-  HappyHerbsState(BH1750 &, DHT &, int, int, int, float, float);
+  HappyHerbsState(BH1750 &, DHT &, int, int, int);
 
   void writeLampPinID(const bool);
   bool readLampPinID();
@@ -45,9 +46,9 @@ class HappyHerbsState {
  */
 class HappyHerbsService {
  private:
-  String thingName;
-  String topicShadowUpdate;
-  String topicShadowUpdateDelta;
+  String thingName = "";
+  String topicShadowUpdate = "";
+  String topicShadowUpdateDelta = "";
 
   HappyHerbsState *hhState;
   PubSubClient *pubsub;

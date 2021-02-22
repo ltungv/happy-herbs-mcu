@@ -7,16 +7,12 @@
 
 HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150,
                                  DHT &tempHumidSensorDHT, int lampPinID,
-                                 int pumpPinID, int moistureSensorPinId,
-                                 float lightThreshold,
-                                 float moistureThreshold) {
+                                 int pumpPinID, int moistureSensorPinId) {
   this->lightSensorBH1750 = &lightSensorBH17150;
   this->tempHumidSensorDHT = &tempHumidSensorDHT;
   this->lampPinID = lampPinID;
   this->pumpPinID = pumpPinID;
   this->moistureSensorPinID = moistureSensorPinId;
-  this->lightThreshold = lightThreshold;
-  this->moistureThreshold = moistureThreshold;
 }
 
 /**
