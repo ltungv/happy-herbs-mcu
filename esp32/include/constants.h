@@ -6,7 +6,7 @@
 const int I2C_SDA0 = 8;
 const int I2C_SCL0 = 9;
 
-const int HH_GPIO_LAMP = LED_BUILTIN;
+const int HH_GPIO_LAMP = 45;
 const int HH_GPIO_PUMP = 0;
 const int HH_GPIO_DHT = 4;
 const int HH_GPIO_MOISTURE = 10;

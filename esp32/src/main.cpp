@@ -176,9 +176,7 @@ void tHappyHerbsServiceReconnectCallback() { hhService.reconnect(); }
 
 bool tHappyHerbsServiceReconnectOnEnable() { return !hhService.connected(); }
 
-void tHappyHerbsServiceReconnectOnDisable() {
-  if (hhService.connected()) tPublishShadowUpdate.restart();
-};
+void tHappyHerbsServiceReconnectOnDisable() { tPublishShadowUpdate.restart(); };
 
 void tHappyHerbsServiceLoopCallback() { hhService.loop(); };
 
