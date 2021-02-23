@@ -23,6 +23,7 @@ char* awsClientKey;
 // Create an object to interact with the light sensor driver
 BH1750 lightSensorBH1750(HH_I2C_BH1750_ADDR);
 DHT tempHumidSensorDHT(HH_GPIO_DHT, DHT11);
+
 // Create a wifi client that uses SSL client authentication
 WiFiClientSecure wifiClient;
 // Create a wifi client that communicates with AWS
@@ -34,53 +35,124 @@ HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
 // Service for managing statea and communication with server
 HappyHerbsService hhService(hhState, pubsubClient);
 
-// ================ SETUP SCHEDULER ================
 Scheduler taskManager;
 
-// ================ SETUP SCHEDULER: ONE TIME TASKS ================
-void tPublishShadowUpdateCallback();
-Task tPublishShadowUpdate(TASK_IMMEDIATE, TASK_ONCE,
-                          &tPublishShadowUpdateCallback, &taskManager, false);
+/**
+ * This task immediately publishes the current state of the system to update AWS
+ * thing's shadow
+ */
+Task tPublishShadowUpdate(
+    TASK_IMMEDIATE,                             // Task's interval (ms)
+    TASK_ONCE,                                  // Tasks's iterations
+    []() { hhService.publishShadowUpdate(); },  // Task's callback
+    &taskManager,                               // Tasks scheduler
+    false);                                     // Is task enabled?
 
-void tPublishSensorsMeasurementsCallback();
-Task tPublishSensorsMeasurements(TASK_IMMEDIATE, TASK_ONCE,
-                                 &tPublishSensorsMeasurementsCallback,
-                                 &taskManager, false);
+/**
+ * This task immediately take measurement from every sensor and publishes the
+ * data to AWS
+ */
+Task tPublishSensorsMeasurements(
+    TASK_IMMEDIATE,                                    // Task's interval (ms)
+    TASK_ONCE,                                         // Tasks's iterations
+    []() { hhService.publishSensorsMeasurements(); },  // Task's callback
+    &taskManager,                                      // Tasks scheduler
+    false);                                            // Is task enabled?
 
-bool tTurnOnWaterPumpOnEnable();
-void tTurnOnWaterPumpOnDisable();
-Task tTurnOnWaterPump(3 * TASK_SECOND, TASK_ONCE, NULL, &taskManager, false,
-                      &tTurnOnWaterPumpOnEnable, &tTurnOnWaterPumpOnDisable);
+/**
+ * This task turns on the water pump when started, then after its designated
+ * interval has passed, the task stops and turns off the water pump
+ */
+Task tTurnOnWaterPump(
+    5 * TASK_SECOND,  // Task's interval (ms)
+    TASK_FOREVER,     // Tasks's iterations
+    NULL,             // Task's callback
+    &taskManager,     // Tasks scheduler
+    false,            // Is task enabled?
+    []() {
+      Serial.println("Watering for 3 seconds... ");
+      hhState.writePumpPinID(true);
+      tPublishShadowUpdate.restart();
+      return true;
+    },  // Function to call when task is enabled
+    []() {
+      Serial.println("Stop watering");
+      hhState.writePumpPinID(false);
+      tPublishShadowUpdate.restart();
+    });  // Function to call when task is disabled
 
-// ================ SETUP SCHEDULER: PEDIODIC TASKS ================
-void tHappyHerbsServiceReconnectCallback();
-bool tHappyHerbsServiceReconnectOnEnable();
-void tHappyHerbsServiceReconnectOnDisable();
-Task tHappyHerbsServiceReconnect(5 * TASK_SECOND, TASK_FOREVER,
-                                 &tHappyHerbsServiceReconnectCallback,
-                                 &taskManager, true,
-                                 &tHappyHerbsServiceReconnectOnEnable,
-                                 &tHappyHerbsServiceReconnectOnDisable);
+/**
+ * This task tries to reconnect to AWS MQTT broker if the service is
+ * disconnected, upon reconnection, publish a message to report the system
+ * current state
+ */
+Task tHappyHerbsServiceReconnect(
+    5 * TASK_SECOND,                  // Task's interval (ms)
+    TASK_FOREVER,                     // Tasks's iterations
+    []() { hhService.reconnect(); },  // Task's callback
+    &taskManager,                     // Tasks scheduler
+    true,                             // Is task enabled?
+    []() {
+      return !hhService.connected();
+    },  // Function to call when task is enabled
+    []() {
+      tPublishShadowUpdate.restartDelayed(TASK_SECOND);
+    });  // Function to call when task is disabled
 
-void tHappyHerbsServiceLoopCallback();
-Task tHappyHerbsServiceLoop(TASK_IMMEDIATE, TASK_FOREVER,
-                            &tHappyHerbsServiceLoopCallback, &taskManager,
-                            true);
+/**
+ * Call the loop() function on HappyHerbsService so that MQTT messages can be
+ * processed
+ */
+Task tHappyHerbsServiceLoop(
+    TASK_IMMEDIATE,              // Task's interval (ms)
+    TASK_FOREVER,                // Tasks's iterations
+    []() { hhService.loop(); },  // Task's callback
+    &taskManager,                // Tasks scheduler
+    true);                       // Is task enabled?
 
-void tPeriodicSensorsMeasurementsPublishCallback();
+/**
+ * This task periodically restart the task for updating AWS thing's shadow
+ */
 Task tPeriodicSensorsMeasurementsPublish(
-    10 * TASK_MINUTE, TASK_FOREVER,
-    &tPeriodicSensorsMeasurementsPublishCallback, &taskManager, true);
+    10 * TASK_MINUTE,                                 // Task's interval (ms)
+    TASK_FOREVER,                                     // Tasks's iterations
+    []() { tPublishSensorsMeasurements.restart(); },  // Task's callback
+    &taskManager,                                     // Tasks scheduler
+    true);                                            // Is task enabled?
 
-void tTurnOnWaterPumpBaseOnMoistureCallback();
-Task tTurnOnWaterPumpOnMoisture(15 * TASK_MINUTE, TASK_FOREVER,
-                                &tTurnOnWaterPumpBaseOnMoistureCallback,
-                                &taskManager, true);
+/**
+ * This task periodically take measurement on the moisture sensor and compare
+ * the result with the user's threshold, if the moisture is not high enough,
+ * restart the task that starts the pump
+ */
+Task tTurnOnWaterPumpOnMoisture(
+    15 * TASK_MINUTE,  // Task's interval (ms)
+    TASK_FOREVER,      // Tasks's iterations
+    []() {             // Task's callback
+      if (hhState.readMoistureSensor() < hhState.getMoistureThreshold()) {
+        tTurnOnWaterPump.restart();
+      }
+    },
+    &taskManager,  // Tasks scheduler
+    true);         // Is task enabled?
 
-void tTurnOnLampBaseOnLightMeterCallback();
-Task tTurnOnLampBaseOnLightMeter(30 * TASK_MINUTE, TASK_FOREVER,
-                                 &tTurnOnLampBaseOnLightMeterCallback,
-                                 &taskManager, true);
+/**
+ * This task periodically take measurement on the light sensor and compare
+ * the result with the user's threshold, if the light level is not high enough,
+ * turn on the connected lamp
+ */
+Task tTurnOnLampBaseOnLightMeter(
+    30 * TASK_MINUTE,  // Task's interval (ms)
+    TASK_FOREVER,      // Tasks's iterations
+    []() {             // Task's callback
+      hhState.writeLampPinID(false);
+      if (hhState.readLightSensorBH1750() < hhState.getLightThreshold()) {
+        hhState.writeLampPinID(true);
+      }
+      tPublishShadowUpdate.restart();
+    },
+    &taskManager,  // Tasks scheduler
+    true);         // Is task enabled?
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -165,51 +237,3 @@ void setup() {
 }
 
 void loop() { taskManager.execute(); }
-
-// ================ PERIODIC TASKS ================
-void tHappyHerbsServiceReconnectCallback() { hhService.reconnect(); }
-
-bool tHappyHerbsServiceReconnectOnEnable() { return !hhService.connected(); }
-
-void tHappyHerbsServiceReconnectOnDisable() {
-  tPublishShadowUpdate.restartDelayed(TASK_SECOND);
-};
-
-void tHappyHerbsServiceLoopCallback() { hhService.loop(); };
-
-void tPeriodicSensorsMeasurementsPublishCallback() {
-  tPublishSensorsMeasurements.restart();
-};
-
-void tTurnOnWaterPumpBaseOnMoistureCallback() {
-  if (hhState.readMoistureSensor() < hhState.getMoistureThreshold())
-    tTurnOnWaterPump.restart();
-};
-
-void tTurnOnLampBaseOnLightMeterCallback() {
-  hhState.writeLampPinID(false);
-  if (hhState.readLightSensorBH1750() < hhState.getLightThreshold())
-    hhState.writeLampPinID(true);
-
-  tPublishShadowUpdate.restart();
-};
-
-// ================ ONE TIME TASKS ================
-void tPublishShadowUpdateCallback() { hhService.publishShadowUpdate(); };
-
-void tPublishSensorsMeasurementsCallback() {
-  hhService.publishSensorsMeasurements();
-};
-
-bool tTurnOnWaterPumpOnEnable() {
-  Serial.print("Watering for 3 seconds... ");
-  hhState.writePumpPinID(true);
-  tPublishShadowUpdate.restart();
-  return true;
-};
-
-void tTurnOnWaterPumpOnDisable() {
-  Serial.println("\tPump Off");
-  hhState.writePumpPinID(false);
-  tPublishShadowUpdate.restart();
-};
