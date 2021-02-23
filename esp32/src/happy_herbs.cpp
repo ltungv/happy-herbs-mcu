@@ -126,9 +126,16 @@ void HappyHerbsService::handleCallback(char *topic, byte *payload,
 
 void HappyHerbsService::setThingName(String thingName) {
   this->thingName = thingName;
+
   this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
+  this->topicShadowUpdateAccepted =
+      "$aws/things/" + thingName + "/shadow/update/accepted";
   this->topicShadowUpdateDelta =
       "$aws/things/" + thingName + "/shadow/update/delta";
+
+  this->topicShadowGet = "$aws/things/" + thingName + "/shadow/get";
+  this->topicShadowGetAccepted =
+      "$aws/things/" + thingName + "/shadow/get/accepted";
 }
 
 /**
@@ -139,7 +146,8 @@ void HappyHerbsService::setThingName(String thingName) {
 void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   int ts = delta["timestamp"];
   if (ts > this->lastUpdated) {
-    // TODO: only update peripherals if user chooses to control the system manually
+    // TODO: only update peripherals if user chooses to control the system
+    // manually
     bool lampState = delta["state"]["lampState"];
     bool pumpState = delta["state"]["pumpState"];
     float lightThreshold = delta["state"]["lightThreshold"];
