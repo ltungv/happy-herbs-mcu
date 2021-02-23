@@ -68,11 +68,11 @@ class HappyHerbsService {
   void setThingName(String);
 
   void loop();
-  bool connected();
   void connect();
-  void handleCallback(const char *, byte *, unsigned int);
+  bool connected();
   bool publish(const char *, const char *);
   bool subscribe(const char *, unsigned int qos);
+  void handleCallback(const char *, byte *, unsigned int);
 
   void publishShadowGet();
   void handleShadowGetAccepted(const JsonDocument &);

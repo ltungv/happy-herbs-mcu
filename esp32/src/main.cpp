@@ -87,11 +87,11 @@ Task tTurnOnWaterPump(
  * current state
  */
 Task tHappyHerbsServiceReconnect(
-    5 * TASK_SECOND,                  // Task's interval (ms)
-    TASK_FOREVER,                     // Tasks's iterations
-    []() { hhService.reconnect(); },  // Task's callback
-    &taskManager,                     // Tasks scheduler
-    true,                             // Is task enabled?
+    5 * TASK_SECOND,                // Task's interval (ms)
+    TASK_FOREVER,                   // Tasks's iterations
+    []() { hhService.connect(); },  // Task's callback
+    &taskManager,                   // Tasks scheduler
+    true,                           // Is task enabled?
     []() {
       return !hhService.connected();
     },  // Function to call when task is enabled

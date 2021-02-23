@@ -104,11 +104,6 @@ void HappyHerbsService::setThingName(String thingName) {
 void HappyHerbsService::loop() { this->pubsub->loop(); }
 
 /**
- * Check if the client is still connected
- */
-bool HappyHerbsService::connected() { return this->pubsub->connected(); }
-
-/**
  * Try to recconect to AWS IoT
  */
 void HappyHerbsService::connect() {
@@ -116,11 +111,36 @@ void HappyHerbsService::connect() {
   Serial.println(this->thingName);
   if (this->pubsub->connect(this->thingName.c_str())) {
     Serial.println("-- connected!");
-    if (this->pubsub->subscribe(this->topicShadowUpdateDelta.c_str(), 1)) {
-    };
+    this->subscribe(this->topicShadowUpdateDelta.c_str(), 1);
   } else {
     Serial.println("-- failed!");
   }
+}
+
+/**
+ * Check if the client is still connected
+ */
+bool HappyHerbsService::connected() { return this->pubsub->connected(); }
+
+bool HappyHerbsService::publish(const char *topic, const char *payload) {
+  bool isSent = this->publish(topic, payload);
+  if (isSent) {
+    Serial.print("SENT [");
+    Serial.print(this->topicShadowUpdate);
+    Serial.print("]");
+    Serial.print(" : ");
+    Serial.println(payload);
+  }
+  return isSent;
+}
+
+bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
+  bool isSubscribed = this->subscribe(topic, qos);
+  if (isSubscribed) {
+    Serial.print("SUBSCRIBED ");
+    Serial.println(this->topicShadowUpdateDelta);
+  }
+  return isSubscribed;
 }
 
 /**
@@ -142,25 +162,22 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
   }
 };
 
-bool HappyHerbsService::publish(const char *topic, const char *payload) {
-  bool isSent = this->pubsub->publish(topic, payload);
-  if (isSent) {
-    Serial.print("SENT [");
-    Serial.print(this->topicShadowUpdate);
-    Serial.print("]");
-    Serial.print(" : ");
-    Serial.println(payload);
-  }
-  return isSent;
-}
+/**
+ * Publishes a message to the topic "$aws/things/{thing_name}/shadow/update" to
+ * announces to client current state
+ */
+void HappyHerbsService::publishShadowUpdate() {
+  StaticJsonDocument<512> shadowUpdateJson;
+  JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
+  JsonObject reportedObj = stateObj.createNestedObject("reported");
+  reportedObj["lampState"] = this->hhState->readLampPinID();
+  reportedObj["pumpState"] = this->hhState->readPumpPinID();
+  reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
+  reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
 
-bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
-  bool isSubscribed = this->pubsub->subscribe(topic, qos);
-  if (isSubscribed) {
-    Serial.print("SUBSCRIBED ");
-    Serial.println(this->topicShadowUpdateDelta);
-  }
-  return isSubscribed;
+  char shadowUpdateBuf[512];
+  serializeJson(shadowUpdateJson, shadowUpdateBuf);
+  this->publish(this->topicShadowUpdate.c_str(), shadowUpdateBuf);
 }
 
 /**
@@ -199,24 +216,6 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
   this->publishShadowUpdate();
 }
 
-/**
- * Publishes a message to the topic "$aws/things/{thing_name}/shadow/update" to
- * announces to client current state
- */
-void HappyHerbsService::publishShadowUpdate() {
-  StaticJsonDocument<512> shadowUpdateJson;
-  JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
-  JsonObject reportedObj = stateObj.createNestedObject("reported");
-  reportedObj["lampState"] = this->hhState->readLampPinID();
-  reportedObj["pumpState"] = this->hhState->readPumpPinID();
-  reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
-  reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
-
-  char shadowUpdateBuf[512];
-  serializeJson(shadowUpdateJson, shadowUpdateBuf);
-  this->pubsub->publish(this->topicShadowUpdate.c_str(), shadowUpdateBuf);
-}
-
 void HappyHerbsService::publishSensorsMeasurements() {
   time_t now;
   struct tm timeinfo;
@@ -235,7 +234,7 @@ void HappyHerbsService::publishSensorsMeasurements() {
 
   char sensorsBuf[512];
   serializeJson(sensorsJson, sensorsBuf);
-  this->pubsub->publish(TOPIC_SENSORS_PUBLISH.c_str(), sensorsBuf);
+  this->publish(TOPIC_SENSORS_PUBLISH.c_str(), sensorsBuf);
 
   Serial.print("SEND [");
   Serial.print(TOPIC_SENSORS_PUBLISH);
