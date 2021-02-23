@@ -84,6 +84,20 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
   this->pubsub = &pubsub;
 }
 
+void HappyHerbsService::setThingName(String thingName) {
+  this->thingName = thingName;
+
+  this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
+  this->topicShadowUpdateAccepted =
+      "$aws/things/" + thingName + "/shadow/update/accepted";
+  this->topicShadowUpdateDelta =
+      "$aws/things/" + thingName + "/shadow/update/delta";
+
+  this->topicShadowGet = "$aws/things/" + thingName + "/shadow/get";
+  this->topicShadowGetAccepted =
+      "$aws/things/" + thingName + "/shadow/get/accepted";
+}
+
 /**
  * Calls the underlying PubSubClient loop method
  */
@@ -97,14 +111,12 @@ bool HappyHerbsService::connected() { return this->pubsub->connected(); }
 /**
  * Try to recconect to AWS IoT
  */
-void HappyHerbsService::reconnect() {
+void HappyHerbsService::connect() {
   Serial.print("Connecting to AWS IoT @");
   Serial.println(this->thingName);
   if (this->pubsub->connect(this->thingName.c_str())) {
     Serial.println("-- connected!");
     if (this->pubsub->subscribe(this->topicShadowUpdateDelta.c_str(), 1)) {
-      Serial.print("SUBSCRIBED ");
-      Serial.println(this->topicShadowUpdateDelta);
     };
   } else {
     Serial.println("-- failed!");
@@ -130,18 +142,25 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
   }
 };
 
-void HappyHerbsService::setThingName(String thingName) {
-  this->thingName = thingName;
+bool HappyHerbsService::publish(const char *topic, const char *payload) {
+  bool isSent = this->pubsub->publish(topic, payload);
+  if (isSent) {
+    Serial.print("SENT [");
+    Serial.print(this->topicShadowUpdate);
+    Serial.print("]");
+    Serial.print(" : ");
+    Serial.println(payload);
+  }
+  return isSent;
+}
 
-  this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
-  this->topicShadowUpdateAccepted =
-      "$aws/things/" + thingName + "/shadow/update/accepted";
-  this->topicShadowUpdateDelta =
-      "$aws/things/" + thingName + "/shadow/update/delta";
-
-  this->topicShadowGet = "$aws/things/" + thingName + "/shadow/get";
-  this->topicShadowGetAccepted =
-      "$aws/things/" + thingName + "/shadow/get/accepted";
+bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
+  bool isSubscribed = this->pubsub->subscribe(topic, qos);
+  if (isSubscribed) {
+    Serial.print("SUBSCRIBED ");
+    Serial.println(this->topicShadowUpdateDelta);
+  }
+  return isSubscribed;
 }
 
 /**
@@ -196,12 +215,6 @@ void HappyHerbsService::publishShadowUpdate() {
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
   this->pubsub->publish(this->topicShadowUpdate.c_str(), shadowUpdateBuf);
-
-  Serial.print("SEND [");
-  Serial.print(this->topicShadowUpdate);
-  Serial.print("]");
-  Serial.print(" : ");
-  Serial.println(shadowUpdateBuf);
 }
 
 void HappyHerbsService::publishSensorsMeasurements() {
