@@ -144,22 +144,34 @@ void HappyHerbsService::setThingName(String thingName) {
  * client will update it state as given in the message
  */
 void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
-  int ts = delta["timestamp"];
-  if (ts > this->lastUpdated) {
-    // TODO: only update peripherals if user chooses to control the system
-    // manually
+  int tsLampState = delta["metadata"]["lampState"]["timestamp"];
+  if (tsLampState > this->tsLampState) {
     bool lampState = delta["state"]["lampState"];
-    bool pumpState = delta["state"]["pumpState"];
-    float lightThreshold = delta["state"]["lightThreshold"];
-    float pumpThreshold = delta["state"]["pumpThreshold"];
-
-    this->hhState->writePumpPinID(pumpState);
     this->hhState->writeLampPinID(lampState);
-    this->hhState->setLightThreshold(lightThreshold);
-    this->hhState->setMoistureThreshold(pumpThreshold);
-    this->lastUpdated = ts;
-    this->publishShadowUpdate();
   }
+
+  int tsPumpState = delta["metadata"]["pumpState"]["timestamp"];
+  if (tsPumpState > this->tsPumpState) {
+    /**
+     * TODO: Turn water on and off after a set interval
+     * */
+    bool pumpState = delta["state"]["pumpState"];
+    this->hhState->writePumpPinID(pumpState);
+  }
+
+  int tsLightThreshold = delta["metadata"]["lightThreshold"]["timestamp"];
+  if (tsLightThreshold > this->tsLightThreshold) {
+    float lightThreshold = delta["state"]["lightThreshold"];
+    this->hhState->setLightThreshold(lightThreshold);
+  }
+
+  int tsMoistureThreshold = delta["metadata"]["moistureThreshold"]["timestamp"];
+  if (tsMoistureThreshold > this->tsMoistureThreshold) {
+    float moistureThreshold = delta["state"]["moistureThreshold"];
+    this->hhState->setMoistureThreshold(moistureThreshold);
+  }
+
+  this->publishShadowUpdate();
 }
 
 /**

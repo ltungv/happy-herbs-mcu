@@ -46,7 +46,11 @@ class HappyHerbsState {
  */
 class HappyHerbsService {
  private:
-  int lastUpdated = 0;
+  int tsLampState = 0;
+  int tsPumpState = 0;
+  int tsLightThreshold = 0;
+  int tsMoistureThreshold = 0;
+
   String thingName = "";
 
   String topicShadowUpdate = "";
