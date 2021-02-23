@@ -65,7 +65,7 @@ Task tPublishSensorsMeasurements(
  */
 Task tTurnOnWaterPump(
     5 * TASK_SECOND,  // Task's interval (ms)
-    TASK_ONCE,     // Tasks's iterations
+    TASK_ONCE,        // Tasks's iterations
     NULL,             // Task's callback
     &taskManager,     // Tasks scheduler
     false,            // Is task enabled?
@@ -99,7 +99,7 @@ Task tHappyHerbsServiceLoop(
       }
     },
     &taskManager,  // Tasks scheduler
-    false);         // Is task enabled?
+    false);        // Is task enabled?
 
 /**
  * This task periodically restart the task for updating AWS thing's shadow
@@ -109,23 +109,26 @@ Task tPeriodicSensorsMeasurementsPublish(
     TASK_FOREVER,                                     // Tasks's iterations
     []() { tPublishSensorsMeasurements.restart(); },  // Task's callback
     &taskManager,                                     // Tasks scheduler
-    false);                                            // Is task enabled?
+    false);                                           // Is task enabled?
 
 /**
  * This task periodically take measurement on the moisture sensor and compare
  * the result with the user's threshold, if the moisture is not high enough,
  * restart the task that starts the pump
  */
-Task tTurnOnWaterPumpBaseOnMoisture(
+Task tStartWateringPumpBaseOnMoisture(
     15 * TASK_MINUTE,  // Task's interval (ms)
     TASK_FOREVER,      // Tasks's iterations
     []() {             // Task's callback
-      if (hhState.readMoistureSensor() < hhState.getMoistureThreshold()) {
+      float moisture = hhState.readMoistureSensor();
+      if (moisture < hhState.getMoistureThreshold()) {
+        Serial.printf("MOISTURE IS LOW %f.2 < %f.2\n", moisture,
+                      hhState.getMoistureThreshold());
         tTurnOnWaterPump.restart();
       }
     },
     &taskManager,  // Tasks scheduler
-    false);         // Is task enabled?
+    false);        // Is task enabled?
 
 /**
  * This task periodically take measurement on the light sensor and compare
@@ -137,13 +140,17 @@ Task tTurnOnLampBaseOnLightMeter(
     TASK_FOREVER,      // Tasks's iterations
     []() {             // Task's callback
       hhState.writeLampPinID(false);
-      if (hhState.readLightSensorBH1750() < hhState.getLightThreshold()) {
+      float lightLevel = hhState.readLightSensorBH1750();
+      if (lightLevel < hhState.getLightThreshold()) {
+        Serial.printf("LIGHT LEVEL IS LOW %f.2 < %f.2\n", lightLevel,
+                      hhState.getLightThreshold());
+        Serial.println("TURN ON LAMP");
         hhState.writeLampPinID(true);
       }
       tPublishShadowUpdate.restart();
     },
     &taskManager,  // Tasks scheduler
-    false);         // Is task enabled?
+    false);        // Is task enabled?
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -229,7 +236,7 @@ void setup() {
   tHappyHerbsServiceLoop.enable();
   tPeriodicSensorsMeasurementsPublish.enable();
   tTurnOnLampBaseOnLightMeter.enable();
-  tTurnOnWaterPumpBaseOnMoisture.enable();
+  tStartWateringPumpBaseOnMoisture.enable();
 }
 
 void loop() { taskManager.execute(); }
