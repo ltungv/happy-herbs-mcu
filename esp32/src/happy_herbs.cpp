@@ -216,7 +216,7 @@ void HappyHerbsService::publishSensorsMeasurements() {
   sensorsJson["timestamp"] = now;
   sensorsJson["thingsName"] = this->thingName;
   sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
-  // sensorsJson["moisture"] = this->hhState->readMoistureSensor();
+  sensorsJson["moisture"] = this->hhState->readMoistureSensor();
   sensorsJson["temperature"] = this->hhState->readTemperatureSensor();
   sensorsJson["humidity"] = this->hhState->readHumiditySensor();
 
