@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 
+const int SERIAL_BAUD_RATE = 115200;
 const int I2C_SDA0 = 8;
 const int I2C_SCL0 = 9;
 
@@ -12,10 +13,11 @@ const int HH_GPIO_DHT = 4;
 const int HH_GPIO_MOISTURE = 10;
 const int HH_I2C_BH1750_ADDR = 0x23;
 
+const int MQTT_MESSAGE_BUFFER_SIZE = 2048;
+
 const float DEFAULT_LIGHT_THRESHOLD = 100.0;
 const float DEFAULT_MOISTURE_THRESHOLD = 30.0;
 
-const int SERIAL_BAUD_RATE = 115200;
 const String NTP_SERVER = "pool.ntp.org";
 const String MISC_CREDS = "/creds/misc.json";
 

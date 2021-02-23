@@ -168,19 +168,19 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
   Serial.printf("%s\n", payload);
 
   if (strcmp(topic, this->topicShadowUpdateDelta.c_str()) == 0) {
-    StaticJsonDocument<2048> shadowUpdateDeltaJson;
+    StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateDeltaJson;
     deserializeJson(shadowUpdateDeltaJson, payload, length);
     this->handleShadowUpdateDelta(shadowUpdateDeltaJson);
   }
 
   if (strcmp(topic, this->topicShadowUpdateAccepted.c_str()) == 0) {
-    StaticJsonDocument<2048> shadowUpdateAcceptedJson;
+    StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateAcceptedJson;
     deserializeJson(shadowUpdateAcceptedJson, payload, length);
     this->handleShadowUpdateAccepted(shadowUpdateAcceptedJson);
   }
 
   if (strcmp(topic, this->topicShadowUpdateRejected.c_str()) == 0) {
-    StaticJsonDocument<2048> shadowUpdateRejectedJson;
+    StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateRejectedJson;
     deserializeJson(shadowUpdateRejectedJson, payload, length);
     this->handleShadowUpdateRejected(shadowUpdateRejectedJson);
   }
@@ -191,7 +191,7 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
  * announces to client current state
  */
 void HappyHerbsService::publishShadowUpdate() {
-  StaticJsonDocument<512> shadowUpdateJson;
+  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lampState"] = this->hhState->readLampPinID();
@@ -199,7 +199,7 @@ void HappyHerbsService::publishShadowUpdate() {
   reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
   reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
 
-  char shadowUpdateBuf[512];
+  char shadowUpdateBuf[MQTT_MESSAGE_BUFFER_SIZE];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
   this->publish(this->topicShadowUpdate.c_str(), shadowUpdateBuf);
 }
@@ -279,7 +279,7 @@ void HappyHerbsService::publishSensorsMeasurements() {
   }
   time(&now);
 
-  StaticJsonDocument<512> sensorsJson;
+  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> sensorsJson;
   sensorsJson["timestamp"] = now;
   sensorsJson["thingsName"] = this->thingName;
   sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
@@ -287,7 +287,7 @@ void HappyHerbsService::publishSensorsMeasurements() {
   sensorsJson["temperature"] = this->hhState->readTemperatureSensor();
   sensorsJson["humidity"] = this->hhState->readHumiditySensor();
 
-  char sensorsBuf[512];
+  char sensorsBuf[MQTT_MESSAGE_BUFFER_SIZE];
   serializeJson(sensorsJson, sensorsBuf);
   this->publish(TOPIC_SENSORS_PUBLISH.c_str(), sensorsBuf);
 }

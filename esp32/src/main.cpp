@@ -172,7 +172,7 @@ void setup() {
 
   // ================ CONNECT TO WIFI AND SETUP LOCAL TIME ================
   char* miscCreds = loadFile(MISC_CREDS.c_str());
-  StaticJsonDocument<512> miscCredsJson;
+  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> miscCredsJson;
   deserializeJson(miscCredsJson, miscCreds);
   free(miscCreds);
 
@@ -217,7 +217,7 @@ void setup() {
   wifiClient.setPrivateKey(awsClientKey);
 
   pubsubClient.setServer(awsEndpoint, 8883);
-  pubsubClient.setBufferSize(2048);
+  pubsubClient.setBufferSize(MQTT_MESSAGE_BUFFER_SIZE);
   pubsubClient.setCallback([](char* topic, byte* payload, unsigned int length) {
     hhService.handleCallback(topic, payload, length);
   });
