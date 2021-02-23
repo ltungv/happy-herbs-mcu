@@ -46,25 +46,34 @@ class HappyHerbsState {
  */
 class HappyHerbsService {
  private:
+  int lastUpdated = 0;
   String thingName = "";
+
   String topicShadowUpdate = "";
+  String topicShadowUpdateAccepted = "";
   String topicShadowUpdateDelta = "";
+
+  String topicShadowGet = "";
+  String topicShadowGetAccepted = "";
 
   HappyHerbsState *hhState;
   PubSubClient *pubsub;
-  int lastUpdated = 0;
 
  public:
   HappyHerbsService(HappyHerbsState &, PubSubClient &);
 
+  void setThingName(String);
+
   void loop();
   bool connected();
   void reconnect();
+
   void handleCallback(char *, byte *, unsigned int);
-
-  void setThingName(String);
-
+  void handleShadowGetAccepted(const JsonDocument &);
+  void handleShadowUpdateAccepted(const JsonDocument &);
   void handleShadowUpdateDelta(const JsonDocument &);
+
+  void publishShadowGet();
   void publishShadowUpdate();
   void publishSensorsMeasurements();
 };
