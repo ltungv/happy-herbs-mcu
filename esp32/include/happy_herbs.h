@@ -55,14 +55,14 @@ class HappyHerbsService {
 
   String thingName = "";
 
+  String topicShadowGet = "";
+  String topicShadowGetAccepted = "";
+  String topicShadowGetRejected = "";
+
   String topicShadowUpdate = "";
   String topicShadowUpdateAccepted = "";
   String topicShadowUpdateRejected = "";
   String topicShadowUpdateDelta = "";
-
-  String topicShadowGet = "";
-  String topicShadowGetAccepted = "";
-  String topicShadowGetRejected = "";
 
   HappyHerbsState *hhState;
   PubSubClient *pubsub;

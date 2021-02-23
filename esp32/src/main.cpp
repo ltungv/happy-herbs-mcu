@@ -217,6 +217,7 @@ void setup() {
   wifiClient.setPrivateKey(awsClientKey);
 
   pubsubClient.setServer(awsEndpoint, 8883);
+  pubsubClient.setBufferSize(2048);
   pubsubClient.setCallback([](char* topic, byte* payload, unsigned int length) {
     hhService.handleCallback(topic, payload, length);
   });

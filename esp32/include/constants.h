@@ -12,8 +12,8 @@ const int HH_GPIO_DHT = 4;
 const int HH_GPIO_MOISTURE = 10;
 const int HH_I2C_BH1750_ADDR = 0x23;
 
-const float DEFAULT_LIGHT_THRESHOLD = 100;
-const float DEFAULT_MOISTURE_THRESHOLD = 30;
+const float DEFAULT_LIGHT_THRESHOLD = 100.0;
+const float DEFAULT_MOISTURE_THRESHOLD = 30.0;
 
 const int SERIAL_BAUD_RATE = 115200;
 const String NTP_SERVER = "pool.ntp.org";

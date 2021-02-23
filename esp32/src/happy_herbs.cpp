@@ -87,19 +87,16 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
 void HappyHerbsService::setThingName(String thingName) {
   this->thingName = thingName;
 
-  this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
-  this->topicShadowUpdateAccepted =
-      "$aws/things/" + thingName + "/shadow/update/accepted";
-  this->topicShadowUpdateRejected =
-      "$aws/things/" + thingName + "/shadow/update/rejected";
-  this->topicShadowUpdateDelta =
-      "$aws/things/" + thingName + "/shadow/update/delta";
+  String shadowPrefix = "$aws/things/" + thingName + "/shadow";
 
-  this->topicShadowGet = "$aws/things/" + thingName + "/shadow/get";
-  this->topicShadowGetAccepted =
-      "$aws/things/" + thingName + "/shadow/get/accepted";
-  this->topicShadowGetRejected =
-      "$aws/things/" + thingName + "/shadow/get/rejected";
+  this->topicShadowGet = shadowPrefix + "/get";
+  this->topicShadowGetAccepted = this->topicShadowGet + "/accepted";
+  this->topicShadowGetRejected = this->topicShadowGet + "/rejected";
+
+  this->topicShadowUpdate = shadowPrefix + "/update";
+  this->topicShadowUpdateAccepted = this->topicShadowUpdate + "/accepted";
+  this->topicShadowUpdateRejected = this->topicShadowUpdate + "/rejected";
+  this->topicShadowUpdateDelta = this->topicShadowUpdate + "/delta";
 }
 
 /**
@@ -143,7 +140,7 @@ bool HappyHerbsService::publish(const char *topic, const char *payload) {
     Serial.print(topic);
     Serial.print("]");
     Serial.print(" : ");
-    Serial.println(payload);
+    Serial.printf("%s\n", payload);
   }
   return isSent;
 }
@@ -167,22 +164,22 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
   Serial.print(topic);
   Serial.print("]");
   Serial.print(" : ");
-  Serial.println((char *)payload);
+  Serial.printf("%s\n", payload);
 
   if (strcmp(topic, this->topicShadowUpdateDelta.c_str()) == 0) {
-    StaticJsonDocument<512> shadowUpdateDeltaJson;
+    StaticJsonDocument<2048> shadowUpdateDeltaJson;
     deserializeJson(shadowUpdateDeltaJson, payload, length);
     this->handleShadowUpdateDelta(shadowUpdateDeltaJson);
   }
 
   if (strcmp(topic, this->topicShadowUpdateAccepted.c_str()) == 0) {
-    StaticJsonDocument<512> shadowUpdateAcceptedJson;
+    StaticJsonDocument<2048> shadowUpdateAcceptedJson;
     deserializeJson(shadowUpdateAcceptedJson, payload, length);
     this->handleShadowUpdateAccepted(shadowUpdateAcceptedJson);
   }
 
   if (strcmp(topic, this->topicShadowUpdateRejected.c_str()) == 0) {
-    StaticJsonDocument<512> shadowUpdateRejectedJson;
+    StaticJsonDocument<2048> shadowUpdateRejectedJson;
     deserializeJson(shadowUpdateRejectedJson, payload, length);
     this->handleShadowUpdateRejected(shadowUpdateRejectedJson);
   }
