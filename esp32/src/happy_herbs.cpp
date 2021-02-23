@@ -115,7 +115,7 @@ void HappyHerbsService::reconnect() {
  * Receives messages from all topics; this method acts as a controller that
  * routes messages to other handlers that can process the message
  */
-void HappyHerbsService::handleCallback(char *topic, byte *payload,
+void HappyHerbsService::handleCallback(const char *topic, byte *payload,
                                        unsigned int length) {
   Serial.print("RECV [");
   Serial.print(topic);

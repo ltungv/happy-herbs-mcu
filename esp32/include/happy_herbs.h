@@ -69,8 +69,10 @@ class HappyHerbsService {
 
   void loop();
   bool connected();
-  void reconnect();
-  void handleCallback(char *, byte *, unsigned int);
+  void connect();
+  void handleCallback(const char *, byte *, unsigned int);
+  bool publish(const char *, const char *);
+  bool subscribe(const char *, unsigned int qos);
 
   void publishShadowGet();
   void handleShadowGetAccepted(const JsonDocument &);
