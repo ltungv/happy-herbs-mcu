@@ -125,7 +125,7 @@ Task tPeriodicSensorsMeasurementsPublish(
  * the result with the user's threshold, if the moisture is not high enough,
  * restart the task that starts the pump
  */
-Task tTurnOnWaterPumpOnMoisture(
+Task tTurnOnWaterPumpBaseOnMoisture(
     15 * TASK_MINUTE,  // Task's interval (ms)
     TASK_FOREVER,      // Tasks's iterations
     []() {             // Task's callback
