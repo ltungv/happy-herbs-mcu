@@ -6,6 +6,7 @@
 #include <BH1750.h>
 #include <DHT.h>
 #include <PubSubClient.h>
+#include <TaskScheduler.h>
 
 /**
  * This class manages the entire state of the planting system, any changes to
@@ -51,6 +52,9 @@ class HappyHerbsService {
   int tsLightThreshold = 0;
   int tsMoistureThreshold = 0;
 
+  bool awaitingShadowUpdateResponse = false;
+  bool awaitingShadowGetResponse = false;
+
   String thingName = "";
 
   String topicShadowGet = "";
@@ -66,7 +70,7 @@ class HappyHerbsService {
   PubSubClient *pubsub;
 
  public:
-  HappyHerbsService(HappyHerbsState &, PubSubClient &);
+  HappyHerbsService(HappyHerbsState &, PubSubClient &, Scheduler &);
   void setThingName(String);
 
   void loop();

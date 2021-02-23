@@ -29,13 +29,13 @@ WiFiClientSecure wifiClient;
 // Create a wifi client that communicates with AWS
 PubSubClient pubsubClient(wifiClient);
 
+Scheduler taskManager;
+
 // State manager and hardware controller
 HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
                         HH_GPIO_PUMP, HH_GPIO_MOISTURE);
 // Service for managing statea and communication with server
-HappyHerbsService hhService(hhState, pubsubClient);
-
-Scheduler taskManager;
+HappyHerbsService hhService(hhState, pubsubClient, taskManager);
 
 /**
  * This task immediately publishes the current state of the system to update AWS
