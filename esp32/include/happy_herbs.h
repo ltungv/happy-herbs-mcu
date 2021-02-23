@@ -61,20 +61,20 @@ class HappyHerbsService {
 
  public:
   HappyHerbsService(HappyHerbsState &, PubSubClient &);
-
   void setThingName(String);
 
   void loop();
   bool connected();
   void reconnect();
-
   void handleCallback(char *, byte *, unsigned int);
+
+  void publishShadowGet();
   void handleShadowGetAccepted(const JsonDocument &);
+
+  void publishShadowUpdate();
   void handleShadowUpdateAccepted(const JsonDocument &);
   void handleShadowUpdateDelta(const JsonDocument &);
 
-  void publishShadowGet();
-  void publishShadowUpdate();
   void publishSensorsMeasurements();
 };
 
