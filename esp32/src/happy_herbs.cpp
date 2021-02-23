@@ -90,12 +90,16 @@ void HappyHerbsService::setThingName(String thingName) {
   this->topicShadowUpdate = "$aws/things/" + thingName + "/shadow/update";
   this->topicShadowUpdateAccepted =
       "$aws/things/" + thingName + "/shadow/update/accepted";
+  this->topicShadowUpdateRejected =
+      "$aws/things/" + thingName + "/shadow/update/rejected";
   this->topicShadowUpdateDelta =
       "$aws/things/" + thingName + "/shadow/update/delta";
 
   this->topicShadowGet = "$aws/things/" + thingName + "/shadow/get";
   this->topicShadowGetAccepted =
       "$aws/things/" + thingName + "/shadow/get/accepted";
+  this->topicShadowGetRejected =
+      "$aws/things/" + thingName + "/shadow/get/rejected";
 }
 
 /**
@@ -111,7 +115,13 @@ void HappyHerbsService::connect() {
   Serial.println(this->thingName);
   if (this->pubsub->connect(this->thingName.c_str())) {
     Serial.println("-- connected!");
+
+    this->subscribe(this->topicShadowUpdateAccepted.c_str(), 1);
+    this->subscribe(this->topicShadowUpdateRejected.c_str(), 1);
     this->subscribe(this->topicShadowUpdateDelta.c_str(), 1);
+
+    this->subscribe(this->topicShadowGetAccepted.c_str(), 1);
+    this->subscribe(this->topicShadowGetRejected.c_str(), 1);
   } else {
     Serial.println("-- failed!");
   }
@@ -160,6 +170,18 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
     deserializeJson(shadowUpdateDeltaJson, payload, length);
     this->handleShadowUpdateDelta(shadowUpdateDeltaJson);
   }
+
+  if (strcmp(topic, this->topicShadowUpdateAccepted.c_str()) == 0) {
+    StaticJsonDocument<512> shadowUpdateAcceptedJson;
+    deserializeJson(shadowUpdateAcceptedJson, payload, length);
+    this->handleShadowUpdateAccepted(shadowUpdateAcceptedJson);
+  }
+
+  if (strcmp(topic, this->topicShadowUpdateRejected.c_str()) == 0) {
+    StaticJsonDocument<512> shadowUpdateRejectedJson;
+    deserializeJson(shadowUpdateRejectedJson, payload, length);
+    this->handleShadowUpdateRejected(shadowUpdateRejectedJson);
+  }
 };
 
 /**
@@ -178,6 +200,7 @@ void HappyHerbsService::publishShadowUpdate() {
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
   this->publish(this->topicShadowUpdate.c_str(), shadowUpdateBuf);
+  this->awaitingShadowUpdateResponse = true;
 }
 
 /**
@@ -185,35 +208,74 @@ void HappyHerbsService::publishShadowUpdate() {
  * "$aws/things/{thing_name}/shadow/update/delta". Upon a new message, the
  * client will update it state as given in the message
  */
-void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &delta) {
-  int tsLampState = delta["metadata"]["lampState"]["timestamp"];
+void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &deltaDoc) {
+  int tsLampState = deltaDoc["metadata"]["lampState"]["timestamp"];
   if (tsLampState > this->tsLampState) {
-    bool lampState = delta["state"]["lampState"];
+    bool lampState = deltaDoc["state"]["lampState"];
     this->hhState->writeLampPinID(lampState);
   }
 
-  int tsPumpState = delta["metadata"]["pumpState"]["timestamp"];
+  int tsPumpState = deltaDoc["metadata"]["pumpState"]["timestamp"];
   if (tsPumpState > this->tsPumpState) {
     /**
      * TODO: Turn water on and off after a set interval
      * */
-    bool pumpState = delta["state"]["pumpState"];
+    bool pumpState = deltaDoc["state"]["pumpState"];
     this->hhState->writePumpPinID(pumpState);
   }
 
-  int tsLightThreshold = delta["metadata"]["lightThreshold"]["timestamp"];
+  int tsLightThreshold = deltaDoc["metadata"]["lightThreshold"]["timestamp"];
   if (tsLightThreshold > this->tsLightThreshold) {
-    float lightThreshold = delta["state"]["lightThreshold"];
+    float lightThreshold = deltaDoc["state"]["lightThreshold"];
     this->hhState->setLightThreshold(lightThreshold);
   }
 
-  int tsMoistureThreshold = delta["metadata"]["moistureThreshold"]["timestamp"];
+  int tsMoistureThreshold =
+      deltaDoc["metadata"]["moistureThreshold"]["timestamp"];
   if (tsMoistureThreshold > this->tsMoistureThreshold) {
-    float moistureThreshold = delta["state"]["moistureThreshold"];
+    float moistureThreshold = deltaDoc["state"]["moistureThreshold"];
     this->hhState->setMoistureThreshold(moistureThreshold);
   }
 
   this->publishShadowUpdate();
+}
+
+void HappyHerbsService::handleShadowUpdateAccepted(
+    const JsonDocument &acceptedDoc) {
+  if (!acceptedDoc["state"].containsKey("reported")) {
+    return;
+  }
+
+  if (this->awaitingShadowUpdateResponse) {
+    this->awaitingShadowUpdateResponse = false;
+  }
+
+  bool lampState = acceptedDoc["state"]["reported"]["lampState"];
+  bool pumpState = acceptedDoc["state"]["reported"]["pumpState"];
+  float lightThreshold = acceptedDoc["state"]["reported"]["lightThreshold"];
+  float moistureThreshold =
+      acceptedDoc["state"]["reported"]["moistureThreshold"];
+
+  if (lampState != this->hhState->readLampPinID() ||
+      pumpState != this->hhState->readPumpPinID() ||
+      lightThreshold != this->hhState->getLightThreshold() ||
+      moistureThreshold != this->hhState->getMoistureThreshold()) {
+    this->publishShadowUpdate();
+  }
+}
+
+void HappyHerbsService::handleShadowUpdateRejected(
+    const JsonDocument &errorDoc) {
+  if (this->awaitingShadowUpdateResponse) {
+    this->awaitingShadowUpdateResponse = false;
+  }
+
+  int errCode = errorDoc["code"];
+  String errMsg = errorDoc["message"];
+  if (errCode == 500) {
+    this->publishShadowUpdate();
+  }
+  Serial.printf("ERR%d : %s", errCode, errMsg);
 }
 
 void HappyHerbsService::publishSensorsMeasurements() {
@@ -235,10 +297,4 @@ void HappyHerbsService::publishSensorsMeasurements() {
   char sensorsBuf[512];
   serializeJson(sensorsJson, sensorsBuf);
   this->publish(TOPIC_SENSORS_PUBLISH.c_str(), sensorsBuf);
-
-  Serial.print("SEND [");
-  Serial.print(TOPIC_SENSORS_PUBLISH);
-  Serial.print("]");
-  Serial.print(" : ");
-  Serial.println(sensorsBuf);
 }

@@ -51,14 +51,18 @@ class HappyHerbsService {
   int tsLightThreshold = 0;
   int tsMoistureThreshold = 0;
 
+  bool awaitingShadowUpdateResponse = false;
+
   String thingName = "";
 
   String topicShadowUpdate = "";
   String topicShadowUpdateAccepted = "";
+  String topicShadowUpdateRejected = "";
   String topicShadowUpdateDelta = "";
 
   String topicShadowGet = "";
   String topicShadowGetAccepted = "";
+  String topicShadowGetRejected = "";
 
   HappyHerbsState *hhState;
   PubSubClient *pubsub;
