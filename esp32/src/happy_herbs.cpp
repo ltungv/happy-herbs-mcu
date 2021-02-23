@@ -79,8 +79,7 @@ float HappyHerbsState::getMoistureThreshold() {
 }
 
 HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
-                                     PubSubClient &pubsub,
-                                     Scheduler &taskScheduler) {
+                                     PubSubClient &pubsub) {
   this->hhState = &hhState;
   this->pubsub = &pubsub;
 }

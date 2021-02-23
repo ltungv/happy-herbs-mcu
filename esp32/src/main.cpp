@@ -35,7 +35,7 @@ Scheduler taskManager;
 HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
                         HH_GPIO_PUMP, HH_GPIO_MOISTURE);
 // Service for managing statea and communication with server
-HappyHerbsService hhService(hhState, pubsubClient, taskManager);
+HappyHerbsService hhService(hhState, pubsubClient);
 
 /**
  * This task immediately publishes the current state of the system to update AWS
