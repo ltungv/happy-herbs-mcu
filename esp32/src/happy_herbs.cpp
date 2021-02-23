@@ -110,10 +110,12 @@ void HappyHerbsService::loop() { this->pubsub->loop(); }
 /**
  * Try to recconect to AWS IoT
  */
-void HappyHerbsService::connect() {
+bool HappyHerbsService::connect() {
   Serial.print("Connecting to AWS IoT @");
   Serial.println(this->thingName);
-  if (this->pubsub->connect(this->thingName.c_str())) {
+
+  bool isConnected = this->pubsub->connect(this->thingName.c_str());
+  if (isConnected) {
     Serial.println("-- connected!");
 
     this->subscribe(this->topicShadowUpdateAccepted.c_str(), 1);
@@ -125,6 +127,8 @@ void HappyHerbsService::connect() {
   } else {
     Serial.println("-- failed!");
   }
+
+  return isConnected;
 }
 
 /**
@@ -133,10 +137,10 @@ void HappyHerbsService::connect() {
 bool HappyHerbsService::connected() { return this->pubsub->connected(); }
 
 bool HappyHerbsService::publish(const char *topic, const char *payload) {
-  bool isSent = this->publish(topic, payload);
+  bool isSent = this->pubsub->publish(topic, payload);
   if (isSent) {
     Serial.print("SENT [");
-    Serial.print(this->topicShadowUpdate);
+    Serial.print(topic);
     Serial.print("]");
     Serial.print(" : ");
     Serial.println(payload);
@@ -145,10 +149,10 @@ bool HappyHerbsService::publish(const char *topic, const char *payload) {
 }
 
 bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
-  bool isSubscribed = this->subscribe(topic, qos);
+  bool isSubscribed = this->pubsub->subscribe(topic, qos);
   if (isSubscribed) {
     Serial.print("SUBSCRIBED ");
-    Serial.println(this->topicShadowUpdateDelta);
+    Serial.println(topic);
   }
   return isSubscribed;
 }

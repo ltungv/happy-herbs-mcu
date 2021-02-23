@@ -72,7 +72,7 @@ class HappyHerbsService {
   void setThingName(String);
 
   void loop();
-  void connect();
+  bool connect();
   bool connected();
   bool publish(const char *, const char *);
   bool subscribe(const char *, unsigned int qos);

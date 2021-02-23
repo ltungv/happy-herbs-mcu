@@ -65,38 +65,20 @@ Task tPublishSensorsMeasurements(
  */
 Task tTurnOnWaterPump(
     5 * TASK_SECOND,  // Task's interval (ms)
-    TASK_FOREVER,     // Tasks's iterations
+    TASK_ONCE,     // Tasks's iterations
     NULL,             // Task's callback
     &taskManager,     // Tasks scheduler
     false,            // Is task enabled?
     []() {
-      Serial.println("Watering for 3 seconds... ");
+      Serial.println("START WATERING");
       hhState.writePumpPinID(true);
       tPublishShadowUpdate.restart();
       return true;
     },  // Function to call when task is enabled
     []() {
-      Serial.println("Stop watering");
+      Serial.println("STOP WATERING");
       hhState.writePumpPinID(false);
       tPublishShadowUpdate.restart();
-    });  // Function to call when task is disabled
-
-/**
- * This task tries to reconnect to AWS MQTT broker if the service is
- * disconnected, upon reconnection, publish a message to report the system
- * current state
- */
-Task tHappyHerbsServiceReconnect(
-    5 * TASK_SECOND,                // Task's interval (ms)
-    TASK_FOREVER,                   // Tasks's iterations
-    []() { hhService.connect(); },  // Task's callback
-    &taskManager,                   // Tasks scheduler
-    true,                           // Is task enabled?
-    []() {
-      return !hhService.connected();
-    },  // Function to call when task is enabled
-    []() {
-      tPublishShadowUpdate.restartDelayed(TASK_SECOND);
     });  // Function to call when task is disabled
 
 /**
@@ -104,11 +86,20 @@ Task tHappyHerbsServiceReconnect(
  * processed
  */
 Task tHappyHerbsServiceLoop(
-    TASK_IMMEDIATE,              // Task's interval (ms)
-    TASK_FOREVER,                // Tasks's iterations
-    []() { hhService.loop(); },  // Task's callback
-    &taskManager,                // Tasks scheduler
-    true);                       // Is task enabled?
+    TASK_IMMEDIATE,  // Task's interval (ms)
+    TASK_FOREVER,    // Tasks's iterations
+    []() {           // Task's callback
+      if (hhService.connected()) {
+        hhService.loop();
+        return;
+      }
+
+      if (hhService.connect()) {
+        tPublishShadowUpdate.restartDelayed(500);
+      }
+    },
+    &taskManager,  // Tasks scheduler
+    false);         // Is task enabled?
 
 /**
  * This task periodically restart the task for updating AWS thing's shadow
@@ -118,7 +109,7 @@ Task tPeriodicSensorsMeasurementsPublish(
     TASK_FOREVER,                                     // Tasks's iterations
     []() { tPublishSensorsMeasurements.restart(); },  // Task's callback
     &taskManager,                                     // Tasks scheduler
-    true);                                            // Is task enabled?
+    false);                                            // Is task enabled?
 
 /**
  * This task periodically take measurement on the moisture sensor and compare
@@ -134,7 +125,7 @@ Task tTurnOnWaterPumpBaseOnMoisture(
       }
     },
     &taskManager,  // Tasks scheduler
-    true);         // Is task enabled?
+    false);         // Is task enabled?
 
 /**
  * This task periodically take measurement on the light sensor and compare
@@ -152,7 +143,7 @@ Task tTurnOnLampBaseOnLightMeter(
       tPublishShadowUpdate.restart();
     },
     &taskManager,  // Tasks scheduler
-    true);         // Is task enabled?
+    false);         // Is task enabled?
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -234,6 +225,11 @@ void setup() {
   hhState.writePumpPinID(false);
   hhState.setLightThreshold(DEFAULT_LIGHT_THRESHOLD);
   hhState.setMoistureThreshold(DEFAULT_MOISTURE_THRESHOLD);
+
+  tHappyHerbsServiceLoop.enable();
+  tPeriodicSensorsMeasurementsPublish.enable();
+  tTurnOnLampBaseOnLightMeter.enable();
+  tTurnOnWaterPumpBaseOnMoisture.enable();
 }
 
 void loop() { taskManager.execute(); }
