@@ -51,8 +51,6 @@ class HappyHerbsService {
   int tsLightThreshold = 0;
   int tsMoistureThreshold = 0;
 
-  bool awaitingShadowUpdateResponse = false;
-
   String thingName = "";
 
   String topicShadowGet = "";

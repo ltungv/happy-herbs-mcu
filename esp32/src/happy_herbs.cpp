@@ -201,7 +201,6 @@ void HappyHerbsService::publishShadowUpdate() {
   char shadowUpdateBuf[512];
   serializeJson(shadowUpdateJson, shadowUpdateBuf);
   this->publish(this->topicShadowUpdate.c_str(), shadowUpdateBuf);
-  this->awaitingShadowUpdateResponse = true;
 }
 
 /**
@@ -247,10 +246,6 @@ void HappyHerbsService::handleShadowUpdateAccepted(
     return;
   }
 
-  if (this->awaitingShadowUpdateResponse) {
-    this->awaitingShadowUpdateResponse = false;
-  }
-
   bool lampState = acceptedDoc["state"]["reported"]["lampState"];
   bool pumpState = acceptedDoc["state"]["reported"]["pumpState"];
   float lightThreshold = acceptedDoc["state"]["reported"]["lightThreshold"];
@@ -267,10 +262,6 @@ void HappyHerbsService::handleShadowUpdateAccepted(
 
 void HappyHerbsService::handleShadowUpdateRejected(
     const JsonDocument &errorDoc) {
-  if (this->awaitingShadowUpdateResponse) {
-    this->awaitingShadowUpdateResponse = false;
-  }
-
   int errCode = errorDoc["code"];
   String errMsg = errorDoc["message"];
   if (errCode == 500) {
