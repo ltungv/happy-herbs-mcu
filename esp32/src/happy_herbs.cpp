@@ -117,6 +117,12 @@ void HappyHerbsService::reconnect() {
  */
 void HappyHerbsService::handleCallback(char *topic, byte *payload,
                                        unsigned int length) {
+  Serial.print("RECV [");
+  Serial.print(topic);
+  Serial.print("]");
+  Serial.print(" : ");
+  Serial.println((char *)payload);
+
   if (strcmp(topic, this->topicShadowUpdateDelta.c_str()) == 0) {
     StaticJsonDocument<512> shadowUpdateDeltaJson;
     deserializeJson(shadowUpdateDeltaJson, payload, length);

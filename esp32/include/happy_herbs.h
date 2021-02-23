@@ -77,6 +77,7 @@ class HappyHerbsService {
 
   void publishShadowUpdate();
   void handleShadowUpdateAccepted(const JsonDocument &);
+  void handleShadowUpdateRejected(const JsonDocument &);
   void handleShadowUpdateDelta(const JsonDocument &);
 
   void publishSensorsMeasurements();

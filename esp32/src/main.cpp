@@ -164,6 +164,7 @@ void setup() {
   Wire.begin(I2C_SDA0, I2C_SCL0);
 
   if (!SPIFFS.begin()) {
+    Serial.println("Could not start file system");
     return;
   }
 
@@ -194,18 +195,22 @@ void setup() {
   // ================ SETUP MQTT CLIENT ================
   awsEndpoint = loadFile(AWS_IOT_ENDPOINT.c_str());
   if (!awsEndpoint) {
+    Serial.println("Could not read AWS endpoint from file");
     return;
   }
   awsRootCACert = loadFile(AWS_ROOTCA_CERT.c_str());
   if (!awsRootCACert) {
+    Serial.println("Could not read root CA certificate from file");
     return;
   }
   awsClientCert = loadFile(AWS_CLIENT_CERT.c_str());
   if (!awsClientCert) {
+    Serial.println("Could not read client certificate from file");
     return;
   }
   awsClientKey = loadFile(AWS_CLIENT_KEY.c_str());
   if (!awsClientKey) {
+    Serial.println("Could not read client key from file");
     return;
   }
 
@@ -215,18 +220,13 @@ void setup() {
 
   pubsubClient.setServer(awsEndpoint, 8883);
   pubsubClient.setCallback([](char* topic, byte* payload, unsigned int length) {
-    Serial.print("RECV [");
-    Serial.print(topic);
-    Serial.print("]");
-    Serial.print(" : ");
-    Serial.println((char*)payload);
     hhService.handleCallback(topic, payload, length);
   });
 
   // ================ SETUP STATE AND SERVICE ================
   String awsThingName = loadFile(AWS_THING_NAME.c_str());
   if (!awsThingName) {
-    return;
+    Serial.println("Could not read AWS thing's name from file");
   }
   hhService.setThingName(awsThingName);
 
