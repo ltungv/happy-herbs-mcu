@@ -47,15 +47,14 @@ Task tHappyHerbsServiceLoop(
         return;
       }
       if (hhService.connect()) {
-        hhService.getTaskPublishShadowUpdate().restartDelayed();
+        hhService.publishShadowUpdate();
       }
     },
     &scheduler, true);
 
 Task tPeriodicSensorsMeasurementsPublish(
     10 * TASK_MINUTE, TASK_FOREVER,
-    []() { hhService.getTaskPublishSensorsMeasurements().restartDelayed(); },
-    &scheduler, true);
+    []() { hhService.publishSensorsMeasurements(); }, &scheduler, true);
 
 /**
  * This task periodically take measurement on the moisture sensor and compare
