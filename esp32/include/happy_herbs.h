@@ -80,6 +80,10 @@ class HappyHerbsService : IHappyHerbsStateController {
   int tsLightThreshold = 0;
   int tsMoistureThreshold = 0;
 
+  int tsShadowGetResponse = 0;
+  int tsShadowUpdateResponse = 0;
+  int tsShadowUpdateDelta = 0;
+
  public:
   HappyHerbsService(HappyHerbsState &, PubSubClient &, Scheduler &);
   void setThingName(String);

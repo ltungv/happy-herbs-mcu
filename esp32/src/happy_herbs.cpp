@@ -296,6 +296,12 @@ void HappyHerbsService::publishSensorsMeasurements() {
 
 void HappyHerbsService::handleShadowUpdateAccepted(
     const JsonDocument &acceptedDoc) {
+  int ts = acceptedDoc["timestamp"];
+  if (ts < this->tsShadowUpdateResponse) {
+    return;
+  }
+  this->tsShadowUpdateResponse = ts;
+
   if (!acceptedDoc["state"].containsKey("reported")) {
     return;
   }
@@ -316,6 +322,12 @@ void HappyHerbsService::handleShadowUpdateAccepted(
 
 void HappyHerbsService::handleShadowUpdateRejected(
     const JsonDocument &errorDoc) {
+  int ts = errorDoc["timestamp"];
+  if (ts < this->tsShadowUpdateResponse) {
+    return;
+  }
+  this->tsShadowUpdateResponse = ts;
+
   int errCode = errorDoc["code"];
   String errMsg = errorDoc["message"];
   if (errCode == 500) {
@@ -330,33 +342,51 @@ void HappyHerbsService::handleShadowUpdateRejected(
  * client will update it state as given in the message
  */
 void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &deltaDoc) {
-  int tsLampState = deltaDoc["metadata"]["lampState"]["timestamp"];
-  if (tsLampState > this->tsLampState) {
-    bool lampState = deltaDoc["state"]["lampState"];
-    this->writeLampPinID(lampState);
+  int ts = deltaDoc["timestamp"];
+  if (ts < this->tsShadowUpdateDelta) {
+    return;
   }
+  this->tsShadowUpdateDelta = ts;
 
-  int tsPumpState = deltaDoc["metadata"]["pumpState"]["timestamp"];
-  if (tsPumpState > this->tsPumpState) {
-    bool pumpState = deltaDoc["state"]["pumpState"];
-    if (pumpState) {
-      this->taskPlantWatering.restart();
-    } else {
-      this->writePumpPinID(false);
+  if (deltaDoc["state"].containsKey("lampState")) {
+    int tsLampState = deltaDoc["metadata"]["lampState"]["timestamp"];
+    if (tsLampState > this->tsLampState) {
+      bool lampState = deltaDoc["state"]["lampState"];
+      this->writeLampPinID(lampState);
+      this->tsLampState = tsLampState;
     }
   }
 
-  int tsLightThreshold = deltaDoc["metadata"]["lightThreshold"]["timestamp"];
-  if (tsLightThreshold > this->tsLightThreshold) {
-    float lightThreshold = deltaDoc["state"]["lightThreshold"];
-    this->setLightThreshold(lightThreshold);
+  if (deltaDoc["state"].containsKey("pumpState")) {
+    int tsPumpState = deltaDoc["metadata"]["pumpState"]["timestamp"];
+    if (tsPumpState > this->tsPumpState) {
+      bool pumpState = deltaDoc["state"]["pumpState"];
+      if (pumpState) {
+        this->taskPlantWatering.restart();
+      } else {
+        this->writePumpPinID(false);
+      }
+      this->tsPumpState = tsPumpState;
+    }
   }
 
-  int tsMoistureThreshold =
-      deltaDoc["metadata"]["moistureThreshold"]["timestamp"];
-  if (tsMoistureThreshold > this->tsMoistureThreshold) {
-    float moistureThreshold = deltaDoc["state"]["moistureThreshold"];
-    this->setMoistureThreshold(moistureThreshold);
+  if (deltaDoc["state"].containsKey("lightThreshold")) {
+    int tsLightThreshold = deltaDoc["metadata"]["lightThreshold"]["timestamp"];
+    if (tsLightThreshold > this->tsLightThreshold) {
+      float lightThreshold = deltaDoc["state"]["lightThreshold"];
+      this->setLightThreshold(lightThreshold);
+      this->tsLightThreshold = tsLightThreshold;
+    }
+  }
+
+  if (deltaDoc["state"].containsKey("moistureThreshold")) {
+    int tsMoistureThreshold =
+        deltaDoc["metadata"]["moistureThreshold"]["timestamp"];
+    if (tsMoistureThreshold > this->tsMoistureThreshold) {
+      float moistureThreshold = deltaDoc["state"]["moistureThreshold"];
+      this->setMoistureThreshold(moistureThreshold);
+      this->tsMoistureThreshold = tsMoistureThreshold;
+    }
   }
 }
 
