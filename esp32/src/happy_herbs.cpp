@@ -86,12 +86,12 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
 
   this->taskPlantWatering.setInterval(5 * TASK_SECOND);
   this->taskPlantWatering.setIterations(TASK_ONCE);
-  this->taskPlantWatering.setOnEnable([this]() {
+  this->taskPlantWatering.setOnEnable([&]() {
     Serial.println("START WATERING");
     this->writePumpPinID(true);
     return true;
   });
-  this->taskPlantWatering.setOnDisable([this]() {
+  this->taskPlantWatering.setOnDisable([&]() {
     Serial.println("STOP WATERING");
     this->writePumpPinID(false);
   });
@@ -116,43 +116,39 @@ void HappyHerbsService::setThingName(String thingName) {
 
 void HappyHerbsService::writeLampPinID(bool state) {
   this->hhState->writeLampPinID(state);
-  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
+  StaticJsonDocument<256> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
-  reportedObj["lampState"] = this->hhState->readLampPinID();
+  reportedObj["lampState"] = state;
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
 void HappyHerbsService::writePumpPinID(bool state) {
   this->hhState->writePumpPinID(state);
-
-  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
+  StaticJsonDocument<256> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
-
   JsonObject reportedObj = stateObj.createNestedObject("reported");
-  reportedObj["pumpState"] = this->hhState->readPumpPinID();
-
+  reportedObj["pumpState"] = state;
   JsonObject desiredObj = stateObj.createNestedObject("desired");
-  desiredObj["pumpState"] = this->hhState->readPumpPinID();
-
+  desiredObj["pumpState"] = state;
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
 void HappyHerbsService::setLightThreshold(float threshold) {
   this->hhState->setLightThreshold(threshold);
-  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
+  StaticJsonDocument<256> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
-  reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
+  reportedObj["lightThreshold"] = threshold;
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
 void HappyHerbsService::setMoistureThreshold(float threshold) {
   this->hhState->setMoistureThreshold(threshold);
-  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
+  StaticJsonDocument<256> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
-  reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
+  reportedObj["moistureThreshold"] = threshold;
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
@@ -197,7 +193,7 @@ bool HappyHerbsService::publish(const char *topic, const char *payload) {
     Serial.print(topic);
     Serial.print("]");
     Serial.print(" : ");
-    Serial.printf("%s\n", payload);
+    Serial.printf("%s\n\n", payload);
   }
   return isSent;
 }
@@ -228,7 +224,7 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
   Serial.print(topic);
   Serial.print("]");
   Serial.print(" : ");
-  Serial.printf("%s\n", payload);
+  Serial.printf("%s\n\n", payload);
 
   if (strcmp(topic, this->topicShadowUpdateDelta.c_str()) == 0) {
     StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateDeltaJson;
@@ -254,7 +250,7 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
  * announces to client current state
  */
 void HappyHerbsService::publishShadowUpdate() {
-  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
+  StaticJsonDocument<512> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lampState"] = this->hhState->readLampPinID();
@@ -272,7 +268,7 @@ void HappyHerbsService::publishSensorsMeasurements() {
   }
   time(&now);
 
-  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> sensorsJson;
+  StaticJsonDocument<512> sensorsJson;
   sensorsJson["timestamp"] = now;
   sensorsJson["thingsName"] = this->thingName;
   sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
@@ -290,20 +286,29 @@ void HappyHerbsService::handleShadowUpdateAccepted(
   }
   this->tsShadowUpdateResponse = ts;
 
+  bool isMismatched = false;
   if (!acceptedDoc["state"].containsKey("reported")) {
     return;
   }
+  if (acceptedDoc["state"]["reported"].containsKey("lampState")) {
+    bool lampState = acceptedDoc["state"]["reported"]["lampState"];
+    isMismatched = lampState != this->hhState->readLampPinID();
+  }
+  if (acceptedDoc["state"]["reported"].containsKey("lampState")) {
+    bool pumpState = acceptedDoc["state"]["reported"]["pumpState"];
+    isMismatched = pumpState != this->hhState->readPumpPinID();
+  }
+  if (acceptedDoc["state"]["reported"].containsKey("lampState")) {
+    float lightThreshold = acceptedDoc["state"]["reported"]["lightThreshold"];
+    isMismatched = lightThreshold != this->hhState->getLightThreshold();
+  }
+  if (acceptedDoc["state"]["reported"].containsKey("lampState")) {
+    float moistureThreshold =
+        acceptedDoc["state"]["reported"]["moistureThreshold"];
+    isMismatched = moistureThreshold != this->hhState->getMoistureThreshold();
+  }
 
-  bool lampState = acceptedDoc["state"]["reported"]["lampState"];
-  bool pumpState = acceptedDoc["state"]["reported"]["pumpState"];
-  float lightThreshold = acceptedDoc["state"]["reported"]["lightThreshold"];
-  float moistureThreshold =
-      acceptedDoc["state"]["reported"]["moistureThreshold"];
-
-  if (lampState != this->hhState->readLampPinID() ||
-      pumpState != this->hhState->readPumpPinID() ||
-      lightThreshold != this->hhState->getLightThreshold() ||
-      moistureThreshold != this->hhState->getMoistureThreshold()) {
+  if (isMismatched) {
     this->publishShadowUpdate();
   }
 }
