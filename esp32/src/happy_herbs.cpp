@@ -84,7 +84,6 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
   this->hhState = &hhState;
   this->pubsub = &pubsub;
 
-  scheduler.addTask(this->taskPlantWatering);
   this->taskPlantWatering.setInterval(5 * TASK_SECOND);
   this->taskPlantWatering.setIterations(TASK_ONCE);
   this->taskPlantWatering.setOnEnable([this]() {
@@ -97,62 +96,19 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
     this->writePumpPinID(false);
   });
 
-  // /**
-  //  * This task immediately publishes the current state of the system to
-  //  update AWS
-  //  * thing's shadow
-  //  */
-  // Task tPublishShadowUpdate(
-  //     TASK_IMMEDIATE,                             // Task's interval (ms)
-  //     TASK_ONCE,                                  // Tasks's iterations
-  //     []() { hhService.publishShadowUpdate(); },  // Task's callback
-  //     &taskManager,                               // Tasks scheduler
-  //     false);                                     // Is task enabled?
+  this->taskPublishShadowUpdate.setInterval(TASK_IMMEDIATE);
+  this->taskPublishShadowUpdate.setIterations(TASK_ONCE);
+  this->taskPublishShadowUpdate.setCallback(
+      [this]() { this->publishShadowUpdate(); });
 
-  // /**
-  //  * This task immediately take measurement from every sensor and publishes
-  //  the
-  //  * data to AWS
-  //  */
-  // Task tPublishSensorsMeasurements(
-  //     TASK_IMMEDIATE,                                    // Task's interval
-  //     (ms) TASK_ONCE,                                         // Tasks's
-  //     iterations
-  //     []() { hhService.publishSensorsMeasurements(); },  // Task's callback
-  //     &taskManager,                                      // Tasks scheduler
-  //     false);                                            // Is task enabled?
+  this->taskPublishSensorsMeasurements.setInterval(TASK_IMMEDIATE);
+  this->taskPublishSensorsMeasurements.setIterations(TASK_ONCE);
+  this->taskPublishSensorsMeasurements.setCallback(
+      [this]() { this->publishSensorsMeasurements(); });
 
-  // /**
-  //  * Call the loop() function on HappyHerbsService so that MQTT messages can
-  //  be
-  //  * processed
-  //  */
-  // Task tHappyHerbsServiceLoop(
-  //     TASK_IMMEDIATE,  // Task's interval (ms)
-  //     TASK_FOREVER,    // Tasks's iterations
-  //     []() {           // Task's callback
-  //       if (hhService.connected()) {
-  //         hhService.loop();
-  //         return;
-  //       }
-
-  //       if (hhService.connect()) {
-  //         tPublishShadowUpdate.restartDelayed(500);
-  //       }
-  //     },
-  //     &taskManager,  // Tasks scheduler
-  //     false);        // Is task enabled?
-
-  // /**
-  //  * This task periodically restart the task for updating AWS thing's shadow
-  //  */
-  // Task tPeriodicSensorsMeasurementsPublish(
-  //     10 * TASK_MINUTE,                                 // Task's interval
-  //     (ms) TASK_FOREVER,                                     // Tasks's
-  //     iterations
-  //     []() { tPublishSensorsMeasurements.restart(); },  // Task's callback
-  //     &taskManager,                                     // Tasks scheduler
-  //     false);                                           // Is task enabled?
+  scheduler.addTask(this->taskPlantWatering);
+  scheduler.addTask(this->taskPublishShadowUpdate);
+  scheduler.addTask(this->taskPublishSensorsMeasurements);
 }
 
 void HappyHerbsService::setThingName(String thingName) {
@@ -176,16 +132,22 @@ void HappyHerbsService::writeLampPinID(bool state) {
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lampState"] = this->hhState->readLampPinID();
-  this->publishShadowUpdate(shadowUpdateJson);
+  this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
 void HappyHerbsService::writePumpPinID(bool state) {
   this->hhState->writePumpPinID(state);
+
   StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
+
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["pumpState"] = this->hhState->readPumpPinID();
-  this->publishShadowUpdate(shadowUpdateJson);
+
+  JsonObject desiredObj = stateObj.createNestedObject("desired");
+  desiredObj["pumpState"] = this->hhState->readPumpPinID();
+
+  this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
 void HappyHerbsService::setLightThreshold(float threshold) {
@@ -194,7 +156,7 @@ void HappyHerbsService::setLightThreshold(float threshold) {
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
-  this->publishShadowUpdate(shadowUpdateJson);
+  this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
 void HappyHerbsService::setMoistureThreshold(float threshold) {
@@ -203,7 +165,7 @@ void HappyHerbsService::setMoistureThreshold(float threshold) {
   JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
   JsonObject reportedObj = stateObj.createNestedObject("reported");
   reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
-  this->publishShadowUpdate(shadowUpdateJson);
+  this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
 /**
@@ -252,6 +214,13 @@ bool HappyHerbsService::publish(const char *topic, const char *payload) {
   return isSent;
 }
 
+void HappyHerbsService::publishJson(const char *topic,
+                                    const JsonDocument &doc) {
+  char buf[MQTT_MESSAGE_BUFFER_SIZE];
+  serializeJson(doc, buf);
+  this->publish(topic, buf);
+}
+
 bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
   bool isSubscribed = this->pubsub->subscribe(topic, qos);
   if (isSubscribed) {
@@ -296,46 +265,33 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
  * Publishes a message to the topic "$aws/things/{thing_name}/shadow/update" to
  * announces to client current state
  */
-void HappyHerbsService::publishShadowUpdate(JsonDocument &doc) {
-  char buf[MQTT_MESSAGE_BUFFER_SIZE];
-  serializeJson(doc, buf);
-  this->publish(this->topicShadowUpdate.c_str(), buf);
+void HappyHerbsService::publishShadowUpdate() {
+  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> shadowUpdateJson;
+  JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
+  JsonObject reportedObj = stateObj.createNestedObject("reported");
+  reportedObj["lampState"] = this->hhState->readLampPinID();
+  reportedObj["pumpState"] = this->hhState->readPumpPinID();
+  reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
+  reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
+  this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
-/**
- * Handle messages from the topic
- * "$aws/things/{thing_name}/shadow/update/delta". Upon a new message, the
- * client will update it state as given in the message
- */
-void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &deltaDoc) {
-  int tsLampState = deltaDoc["metadata"]["lampState"]["timestamp"];
-  if (tsLampState > this->tsLampState) {
-    bool lampState = deltaDoc["state"]["lampState"];
-    this->writeLampPinID(lampState);
+void HappyHerbsService::publishSensorsMeasurements() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return;
   }
+  time(&now);
 
-  int tsPumpState = deltaDoc["metadata"]["pumpState"]["timestamp"];
-  if (tsPumpState > this->tsPumpState) {
-    bool pumpState = deltaDoc["state"]["pumpState"];
-    if (pumpState) {
-      this->restartTaskPlantWatering();
-    } else {
-      this->writePumpPinID(pumpState);
-    }
-  }
-
-  int tsLightThreshold = deltaDoc["metadata"]["lightThreshold"]["timestamp"];
-  if (tsLightThreshold > this->tsLightThreshold) {
-    float lightThreshold = deltaDoc["state"]["lightThreshold"];
-    this->setLightThreshold(lightThreshold);
-  }
-
-  int tsMoistureThreshold =
-      deltaDoc["metadata"]["moistureThreshold"]["timestamp"];
-  if (tsMoistureThreshold > this->tsMoistureThreshold) {
-    float moistureThreshold = deltaDoc["state"]["moistureThreshold"];
-    this->setMoistureThreshold(moistureThreshold);
-  }
+  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> sensorsJson;
+  sensorsJson["timestamp"] = now;
+  sensorsJson["thingsName"] = this->thingName;
+  sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
+  sensorsJson["moisture"] = this->hhState->readMoistureSensor();
+  sensorsJson["temperature"] = this->hhState->readTemperatureSensor();
+  sensorsJson["humidity"] = this->hhState->readHumiditySensor();
+  this->publishJson(TOPIC_SENSORS_PUBLISH.c_str(), sensorsJson);
 }
 
 void HappyHerbsService::handleShadowUpdateAccepted(
@@ -368,27 +324,50 @@ void HappyHerbsService::handleShadowUpdateRejected(
   Serial.printf("ERR%d : %s", errCode, errMsg);
 }
 
-void HappyHerbsService::publishSensorsMeasurements() {
-  time_t now;
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    return;
+/**
+ * Handle messages from the topic
+ * "$aws/things/{thing_name}/shadow/update/delta". Upon a new message, the
+ * client will update it state as given in the message
+ */
+void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &deltaDoc) {
+  int tsLampState = deltaDoc["metadata"]["lampState"]["timestamp"];
+  if (tsLampState > this->tsLampState) {
+    bool lampState = deltaDoc["state"]["lampState"];
+    this->writeLampPinID(lampState);
   }
-  time(&now);
 
-  StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> sensorsJson;
-  sensorsJson["timestamp"] = now;
-  sensorsJson["thingsName"] = this->thingName;
-  sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
-  sensorsJson["moisture"] = this->hhState->readMoistureSensor();
-  sensorsJson["temperature"] = this->hhState->readTemperatureSensor();
-  sensorsJson["humidity"] = this->hhState->readHumiditySensor();
+  int tsPumpState = deltaDoc["metadata"]["pumpState"]["timestamp"];
+  if (tsPumpState > this->tsPumpState) {
+    bool pumpState = deltaDoc["state"]["pumpState"];
+    if (pumpState) {
+      this->taskPlantWatering.restart();
+    } else {
+      this->writePumpPinID(false);
+    }
+  }
 
-  char sensorsBuf[MQTT_MESSAGE_BUFFER_SIZE];
-  serializeJson(sensorsJson, sensorsBuf);
-  this->publish(TOPIC_SENSORS_PUBLISH.c_str(), sensorsBuf);
+  int tsLightThreshold = deltaDoc["metadata"]["lightThreshold"]["timestamp"];
+  if (tsLightThreshold > this->tsLightThreshold) {
+    float lightThreshold = deltaDoc["state"]["lightThreshold"];
+    this->setLightThreshold(lightThreshold);
+  }
+
+  int tsMoistureThreshold =
+      deltaDoc["metadata"]["moistureThreshold"]["timestamp"];
+  if (tsMoistureThreshold > this->tsMoistureThreshold) {
+    float moistureThreshold = deltaDoc["state"]["moistureThreshold"];
+    this->setMoistureThreshold(moistureThreshold);
+  }
 }
 
-void HappyHerbsService::restartTaskPlantWatering(int delayed) {
-  this->taskPlantWatering.restartDelayed(delayed);
+Task &HappyHerbsService::getTaskPlantWatering() {
+  return this->taskPlantWatering;
+}
+
+Task &HappyHerbsService::getTaskPublishShadowUpdate() {
+  return this->taskPublishShadowUpdate;
+}
+
+Task &HappyHerbsService::getTaskPublishSensorsMeasurements() {
+  return this->taskPublishSensorsMeasurements;
 }

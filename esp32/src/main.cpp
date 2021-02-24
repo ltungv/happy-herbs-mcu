@@ -31,20 +31,39 @@ WiFiClientSecure wifiClient;
 // Create a wifi client that communicates with AWS
 PubSubClient pubsubClient(wifiClient);
 
-Scheduler taskManager;
+Scheduler scheduler;
 
 // State manager and hardware controller
 HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
                         HH_GPIO_PUMP, HH_GPIO_MOISTURE);
 // Service for managing statea and communication with server
-HappyHerbsService hhService(hhState, pubsubClient, taskManager);
+HappyHerbsService hhService(hhState, pubsubClient, scheduler);
+
+Task tHappyHerbsServiceLoop(
+    TASK_IMMEDIATE, TASK_FOREVER,
+    []() {
+      if (hhService.connected()) {
+        hhService.loop();
+        return;
+      }
+
+      if (hhService.connect()) {
+        hhService.getTaskPublishShadowUpdate().restartDelayed(500);
+      }
+    },
+    &scheduler, true);
+
+Task tPeriodicSensorsMeasurementsPublish(
+    10 * TASK_MINUTE, TASK_FOREVER,
+    []() { hhService.getTaskPublishSensorsMeasurements().restart(); },
+    &scheduler, true);
 
 /**
  * This task periodically take measurement on the moisture sensor and compare
  * the result with the user's threshold, if the moisture is not high enough,
  * restart the task that starts the pump
  */
-Task tStartWateringPumpBaseOnMoisture(
+Task taskStartWateringBaseOnMoisture(
     15 * TASK_MINUTE,  // Task's interval (ms)
     TASK_FOREVER,      // Tasks's iterations
     []() {             // Task's callback
@@ -52,18 +71,18 @@ Task tStartWateringPumpBaseOnMoisture(
       if (moisture < hhState.getMoistureThreshold()) {
         Serial.printf("MOISTURE IS LOW %f.2 < %f.2\n", moisture,
                       hhState.getMoistureThreshold());
-        hhService.restartTaskPlantWatering();
+        hhService.getTaskPlantWatering().restart();
       }
     },
-    &taskManager,  // Tasks scheduler
-    false);        // Is task enabled?
+    &scheduler,  // Tasks scheduler
+    false);      // Is task enabled?
 
 /**
  * This task periodically take measurement on the light sensor and compare
  * the result with the user's threshold, if the light level is not high enough,
  * turn on the connected lamp
  */
-Task tTurnOnLampBaseOnLightMeter(
+Task taskTurnOnLampBaseOnLightMeter(
     30 * TASK_MINUTE,  // Task's interval (ms)
     TASK_FOREVER,      // Tasks's iterations
     []() {             // Task's callback
@@ -76,8 +95,8 @@ Task tTurnOnLampBaseOnLightMeter(
         hhService.writeLampPinID(true);
       }
     },
-    &taskManager,  // Tasks scheduler
-    false);        // Is task enabled?
+    &scheduler,  // Tasks scheduler
+    false);      // Is task enabled?
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -161,8 +180,8 @@ void setup() {
   hhState.setLightThreshold(DEFAULT_LIGHT_THRESHOLD);
   hhState.setMoistureThreshold(DEFAULT_MOISTURE_THRESHOLD);
 
-  tTurnOnLampBaseOnLightMeter.enable();
-  tStartWateringPumpBaseOnMoisture.enable();
+  taskTurnOnLampBaseOnLightMeter.enable();
+  taskStartWateringBaseOnMoisture.enable();
 }
 
-void loop() { taskManager.execute(); }
+void loop() { scheduler.execute(); }

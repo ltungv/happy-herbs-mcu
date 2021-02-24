@@ -72,15 +72,13 @@ class HappyHerbsService : IHappyHerbsStateController {
   String topicShadowUpdateDelta = "";
 
   Task taskPlantWatering;
+  Task taskPublishShadowUpdate;
+  Task taskPublishSensorsMeasurements;
 
   int tsLampState = 0;
   int tsPumpState = 0;
   int tsLightThreshold = 0;
   int tsMoistureThreshold = 0;
-
-  bool awaitingShadowUpdateReportResponse = false;
-  bool awaitingShadowUpdateDesireResponse = false;
-  bool awaitingShadowGetResponse = false;
 
  public:
   HappyHerbsService(HappyHerbsState &, PubSubClient &, Scheduler &);
@@ -95,19 +93,22 @@ class HappyHerbsService : IHappyHerbsStateController {
   bool connect();
   bool connected();
   bool publish(const char *, const char *);
+  void publishJson(const char *, const JsonDocument &);
   bool subscribe(const char *, unsigned int = 0);
   void handleCallback(const char *, byte *, unsigned int);
 
   void publishShadowGet();
-  void publishShadowUpdate(JsonDocument &);
-  void publishSensorsMeasurements(JsonDocument &);
+  void publishShadowUpdate();
+  void publishSensorsMeasurements();
 
   void handleShadowGetAccepted(const JsonDocument &);
   void handleShadowUpdateAccepted(const JsonDocument &);
   void handleShadowUpdateRejected(const JsonDocument &);
   void handleShadowUpdateDelta(const JsonDocument &);
 
-  void restartTaskPlantWatering(int = 0);
+  Task &getTaskPlantWatering();
+  Task &getTaskPublishShadowUpdate();
+  Task &getTaskPublishSensorsMeasurements();
 };
 
 #endif  // HAPPY_HERBS_H_
