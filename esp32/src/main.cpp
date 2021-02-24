@@ -46,16 +46,15 @@ Task tHappyHerbsServiceLoop(
         hhService.loop();
         return;
       }
-
       if (hhService.connect()) {
-        hhService.getTaskPublishShadowUpdate().restartDelayed(500);
+        hhService.getTaskPublishShadowUpdate().restartDelayed();
       }
     },
     &scheduler, true);
 
 Task tPeriodicSensorsMeasurementsPublish(
     10 * TASK_MINUTE, TASK_FOREVER,
-    []() { hhService.getTaskPublishSensorsMeasurements().restart(); },
+    []() { hhService.getTaskPublishSensorsMeasurements().restartDelayed(); },
     &scheduler, true);
 
 /**
@@ -71,7 +70,7 @@ Task taskStartWateringBaseOnMoisture(
       if (moisture < hhState.getMoistureThreshold()) {
         Serial.printf("MOISTURE IS LOW %f.2 < %f.2\n", moisture,
                       hhState.getMoistureThreshold());
-        hhService.getTaskPlantWatering().restart();
+        hhService.getTaskPlantWatering().restartDelayed();
       }
     },
     &scheduler,  // Tasks scheduler

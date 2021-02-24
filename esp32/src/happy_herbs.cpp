@@ -362,7 +362,7 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &deltaDoc) {
     if (tsPumpState > this->tsPumpState) {
       bool pumpState = deltaDoc["state"]["pumpState"];
       if (pumpState) {
-        this->taskPlantWatering.restart();
+        this->taskPlantWatering.restartDelayed();
       } else {
         this->writePumpPinID(false);
       }
