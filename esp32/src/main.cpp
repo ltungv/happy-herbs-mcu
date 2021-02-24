@@ -37,8 +37,13 @@ Scheduler scheduler;
 HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
                         HH_GPIO_PUMP, HH_GPIO_MOISTURE);
 // Service for managing statea and communication with server
-HappyHerbsService hhService(hhState, pubsubClient, scheduler);
+HappyHerbsService hhService(hhState, pubsubClient);
 
+/**
+ * This task run constantly and keep the connection with AWS alive, if the
+ * connection is dropped the system will try to reconnect and sync its state
+ * with AWS upon reconnection.
+ */
 Task tHappyHerbsServiceLoop(
     TASK_IMMEDIATE, TASK_FOREVER,
     []() {
@@ -52,6 +57,10 @@ Task tHappyHerbsServiceLoop(
     },
     &scheduler, true);
 
+/**
+ * This task takes measurements from every sensor and publish it to AWS for
+ * every 10 minutes.
+ */
 Task tPeriodicSensorsMeasurementsPublish(
     10 * TASK_MINUTE, TASK_FOREVER,
     []() { hhService.publishSensorsMeasurements(); }, &scheduler, true);
@@ -66,9 +75,8 @@ Task tPeriodicShadowGetPublish(
  * restart the task that starts the pump
  */
 Task taskStartWateringBaseOnMoisture(
-    15 * TASK_MINUTE,  // Task's interval (ms)
-    TASK_FOREVER,      // Tasks's iterations
-    []() {             // Task's callback
+    15 * TASK_MINUTE, TASK_FOREVER,
+    []() {
       float moisture = hhState.readMoistureSensor();
       if (moisture < hhState.getMoistureThreshold()) {
         Serial.printf("MOISTURE IS LOW %f.2 < %f.2\n", moisture,
@@ -76,8 +84,7 @@ Task taskStartWateringBaseOnMoisture(
         hhService.getTaskPlantWatering().restartDelayed();
       }
     },
-    &scheduler,  // Tasks scheduler
-    false);      // Is task enabled?
+    &scheduler, false);
 
 /**
  * This task periodically take measurement on the light sensor and compare
@@ -85,9 +92,8 @@ Task taskStartWateringBaseOnMoisture(
  * turn on the connected lamp
  */
 Task taskTurnOnLampBaseOnLightMeter(
-    30 * TASK_MINUTE,  // Task's interval (ms)
-    TASK_FOREVER,      // Tasks's iterations
-    []() {             // Task's callback
+    30 * TASK_MINUTE, TASK_FOREVER,
+    []() {
       hhService.writeLampPinID(false);
       float lightLevel = hhState.readLightSensorBH1750();
       if (lightLevel < hhState.getLightThreshold()) {
@@ -97,8 +103,7 @@ Task taskTurnOnLampBaseOnLightMeter(
         hhService.writeLampPinID(true);
       }
     },
-    &scheduler,  // Tasks scheduler
-    false);      // Is task enabled?
+    &scheduler, false);
 
 void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);
@@ -118,7 +123,7 @@ void setup() {
     Serial.println("Could not begin BH1750 light sensor");
   }
 
-  // ================ CONNECT TO WIFI AND SETUP LOCAL TIME ================
+  // ================ CONNECT TO WIFI ================
   char* miscCreds = loadFile(MISC_CREDS.c_str());
   StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> miscCredsJson;
   deserializeJson(miscCredsJson, miscCreds);
@@ -134,11 +139,12 @@ void setup() {
   }
   Serial.println("connected!");
 
+  // ================ SYNC WITH NTP SERVER ================
   int ntpTimezoneOffset = miscCredsJson["ntpTimezoneOffset"];
   int ntpDaylightOffset = miscCredsJson["ntpDaylightOffset"];
   configTime(ntpTimezoneOffset, ntpDaylightOffset, NTP_SERVER.c_str());
 
-  // ================ SETUP MQTT CLIENT ================
+  // ======== SETUP KEY AND CERTIFICATES FOR CLIENT AUTH ========
   awsEndpoint = loadFile(AWS_IOT_ENDPOINT.c_str());
   if (!awsEndpoint) {
     Serial.println("Could not read AWS endpoint from file");
@@ -164,6 +170,7 @@ void setup() {
   wifiClient.setCertificate(awsClientCert);
   wifiClient.setPrivateKey(awsClientKey);
 
+  // ================ SETUP MQTT CLIENT ================
   pubsubClient.setServer(awsEndpoint, 8883);
   pubsubClient.setBufferSize(MQTT_MESSAGE_BUFFER_SIZE);
   pubsubClient.setCallback([](char* topic, byte* payload, unsigned int length) {
@@ -176,12 +183,14 @@ void setup() {
     Serial.println("Could not read AWS thing's name from file");
   }
   hhService.setThingName(awsThingName);
+  hhService.setupTaskPlantWatering(scheduler, 5 * TASK_SECOND);
 
   hhState.writeLampPinID(false);
   hhState.writePumpPinID(false);
   hhState.setLightThreshold(DEFAULT_LIGHT_THRESHOLD);
   hhState.setMoistureThreshold(DEFAULT_MOISTURE_THRESHOLD);
 
+  // enable tasks after all necessary states have been initialized
   taskTurnOnLampBaseOnLightMeter.enable();
   taskStartWateringBaseOnMoisture.enable();
 }

@@ -15,16 +15,10 @@ HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150,
   this->moistureSensorPinID = moistureSensorPinId;
 }
 
-/**
- * Performs digital read on the pin
- */
 bool HappyHerbsState::readLampPinID() {
   return digitalRead(this->lampPinID) == HIGH;
 }
 
-/**
- * Performs digital write on the pin
- */
 void HappyHerbsState::writeLampPinID(bool lampState) {
   digitalWrite(this->lampPinID, lampState);
 }
@@ -37,9 +31,6 @@ void HappyHerbsState::writePumpPinID(bool pumpState) {
   digitalWrite(this->pumpPinID, pumpState);
 }
 
-/**
- * Reads the value given from the sensor
- */
 float HappyHerbsState::readLightSensorBH1750() {
   return this->lightSensorBH1750->readLightLevel();
 }
@@ -78,13 +69,31 @@ float HappyHerbsState::getMoistureThreshold() {
   return this->moistureThreshold;
 }
 
+/**
+ * Definition and usages of MQTT payload, and how to interact with the broker is
+ * documented by AWS at
+ * https://docs.aws.amazon.com/iot/latest/developerguide/iot-device-shadows.html
+ */
 HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
-                                     PubSubClient &pubsub,
-                                     Scheduler &scheduler) {
+                                     PubSubClient &pubsub) {
   this->hhState = &hhState;
   this->pubsub = &pubsub;
+}
 
-  this->taskPlantWatering.setInterval(5 * TASK_SECOND);
+/**
+ * Set up a task that start the plant watering routine, the pump will be turn
+ * on for `wateringDuration` milliseconds when this task starts and finishes.
+ * The task is disabled by default
+ *
+ * NOTE: The task is owned by this class so it can be used in some internal MQTT
+ * messages handlers
+ *
+ * @param scheduler The scheduler that will run this task
+ * @param wateringDuration Number of milliseconds that the pump is turned on
+ */
+void HappyHerbsService::setupTaskPlantWatering(Scheduler &scheduler,
+                                               long wateringDuration) {
+  this->taskPlantWatering.setInterval(wateringDuration);
   this->taskPlantWatering.setIterations(TASK_ONCE);
   this->taskPlantWatering.setOnEnable([&]() {
     Serial.println("START WATERING");
@@ -99,10 +108,21 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
   scheduler.addTask(this->taskPlantWatering);
 }
 
+/**
+ * Get the task that control the plant watering routine
+ *
+ * @return The task for plant watering
+ */
 Task &HappyHerbsService::getTaskPlantWatering() {
   return this->taskPlantWatering;
 }
 
+/**
+ * Set the name of this MCU designated by AWS, then setup of the MQTT topics
+ * that are used to communicate with AWS
+ *
+ * @param thingName The assigned name
+ */
 void HappyHerbsService::setThingName(String thingName) {
   this->thingName = thingName;
 
@@ -118,6 +138,12 @@ void HappyHerbsService::setThingName(String thingName) {
   this->topicShadowUpdateDelta = this->topicShadowUpdate + "/delta";
 }
 
+/**
+ * Set the lamp's state using the underlying state object and send a message to
+ * indicate state changes to AWS
+ *
+ * @param state Desired lamp's state
+ */
 void HappyHerbsService::writeLampPinID(bool state) {
   this->hhState->writeLampPinID(state);
   StaticJsonDocument<256> shadowUpdateJson;
@@ -129,6 +155,12 @@ void HappyHerbsService::writeLampPinID(bool state) {
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
+/**
+ * Set the pump's state using the underlying state object and send a message to
+ * indicate state changes to AWS
+ *
+ * @param state Desired pump's state
+ */
 void HappyHerbsService::writePumpPinID(bool state) {
   this->hhState->writePumpPinID(state);
   StaticJsonDocument<256> shadowUpdateJson;
@@ -140,6 +172,12 @@ void HappyHerbsService::writePumpPinID(bool state) {
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
+/**
+ * Set the light threshold using the underlying state object and send a message
+ * to indicate state changes to AWS
+ *
+ * @param threshold Desired light threshold
+ */
 void HappyHerbsService::setLightThreshold(float threshold) {
   this->hhState->setLightThreshold(threshold);
   StaticJsonDocument<256> shadowUpdateJson;
@@ -151,6 +189,12 @@ void HappyHerbsService::setLightThreshold(float threshold) {
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
+/**
+ * Set the moisture threshold using the underlying state object and send a
+ * message to indicate state changes to AWS
+ *
+ * @param threshold Desired moisture threshold
+ */
 void HappyHerbsService::setMoistureThreshold(float threshold) {
   this->hhState->setMoistureThreshold(threshold);
   StaticJsonDocument<256> shadowUpdateJson;
@@ -168,7 +212,10 @@ void HappyHerbsService::setMoistureThreshold(float threshold) {
 void HappyHerbsService::loop() { this->pubsub->loop(); }
 
 /**
- * Try to recconect to AWS IoT
+ * Try to connect to AWS IoT. If a connection is successfully initiated, the
+ * system will subscribe to all the necessary MQTT topics
+ *
+ * @return True if a connection is made
  */
 bool HappyHerbsService::connect() {
   Serial.print("Connecting to AWS IoT @");
@@ -193,9 +240,21 @@ bool HappyHerbsService::connect() {
 
 /**
  * Check if the client is still connected
+ *
+ * @return True if a connection is still maintained
  */
 bool HappyHerbsService::connected() { return this->pubsub->connected(); }
 
+/**
+ * Publish a given payload to the given topic, this is a proxy to the underlying
+ * MQTT client and provides serial logging for debug.
+ *
+ * NOTE: The payload size must not exceeds MQTT_MESSAGE_BUFFER_SIZE
+ *
+ * @param topic MQTT topic
+ * @param payload Data to be sent
+ * @return True if published successfully
+ */
 bool HappyHerbsService::publish(const char *topic, const char *payload) {
   bool isSent = this->pubsub->publish(topic, payload);
   if (isSent) {
@@ -208,6 +267,16 @@ bool HappyHerbsService::publish(const char *topic, const char *payload) {
   return isSent;
 }
 
+/**
+ * Serialize the JSON document and publish the serialized data to the given
+ * topic
+ *
+ * NOTE: The payload size must not exceeds MQTT_MESSAGE_BUFFER_SIZE
+ *
+ * @param topic MQTT topic
+ * @param doc JSON document to be sent
+ * @return True if published successfully
+ */
 void HappyHerbsService::publishJson(const char *topic,
                                     const JsonDocument &doc) {
   char buf[MQTT_MESSAGE_BUFFER_SIZE];
@@ -215,13 +284,18 @@ void HappyHerbsService::publishJson(const char *topic,
   this->publish(topic, buf);
 }
 
+/**
+ * Publish an empty message to "$aws/things/{thing_name}/shadow/get" to query
+ * the shadow.
+ */
 void HappyHerbsService::publishShadowGet() {
   this->publish(this->topicShadowGet.c_str(), "");
 }
 
 /**
  * Publishes a message to the topic "$aws/things/{thing_name}/shadow/update" to
- * announces to client current state
+ * announce the client current state. Every existing state will be included in
+ * the message
  */
 void HappyHerbsService::publishShadowUpdate() {
   StaticJsonDocument<512> shadowUpdateJson;
@@ -234,6 +308,10 @@ void HappyHerbsService::publishShadowUpdate() {
   this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
 }
 
+/**
+ * Take measurements for every sensor and publish them to AWS, the data will be
+ * stored inside a DynamoDB table with each corresponds with a table column
+ */
 void HappyHerbsService::publishSensorsMeasurements() {
   time_t now;
   struct tm timeinfo;
@@ -252,6 +330,13 @@ void HappyHerbsService::publishSensorsMeasurements() {
   this->publishJson(TOPIC_SENSORS_PUBLISH.c_str(), sensorsJson);
 }
 
+/**
+ * Subscribe to the given topic with the specified QoS, this is a proxy to the
+ * underlying MQTT client and provides serial logging for debug.
+ *
+ * @param topic MQTT topic
+ * @param qos Quality of service, AWS only support level 0 and level 1
+ */
 bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
   bool isSubscribed = this->pubsub->subscribe(topic, qos);
   if (isSubscribed) {
@@ -264,6 +349,10 @@ bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
 /**
  * Receives messages from all topics; this method acts as a controller that
  * routes messages to other handlers that can process the message
+ *
+ * @param topic The topic on which the payload is published
+ * @param payload The published data
+ * @param length The size of the payload
  */
 void HappyHerbsService::handleCallback(const char *topic, byte *payload,
                                        unsigned int length) {
@@ -297,6 +386,12 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
   }
 };
 
+/**
+ * Handle shadow get accepted document. If the document contains delta state,
+ * update the system state to match the delta
+ *
+ * @param acceptedDoc The shadow get accepted document
+ */
 void HappyHerbsService::handleShadowGetAccepted(
     const JsonDocument &acceptedDoc) {
   int ts = acceptedDoc["timestamp"];
@@ -349,6 +444,12 @@ void HappyHerbsService::handleShadowGetAccepted(
   }
 }
 
+/**
+ * Handle shadow get rejected document. Resend a get message if receive error
+ * code 500
+ *
+ * @param errorDoc The error document
+ */
 void HappyHerbsService::handleShadowGetRejected(const JsonDocument &errorDoc) {
   int ts = errorDoc["timestamp"];
   if (ts < this->tsShadowGetResponse) {
@@ -364,6 +465,12 @@ void HappyHerbsService::handleShadowGetRejected(const JsonDocument &errorDoc) {
   Serial.printf("ERR%d : %s", errCode, errMsg);
 }
 
+/**
+ * Handle shadow update accepted document. Check if the returned "reported
+ * state" matches with the system, if not, resend an update message
+ *
+ * @param accepted The accepted update document
+ */
 void HappyHerbsService::handleShadowUpdateAccepted(
     const JsonDocument &acceptedDoc) {
   int ts = acceptedDoc["timestamp"];
@@ -399,6 +506,12 @@ void HappyHerbsService::handleShadowUpdateAccepted(
   }
 }
 
+/**
+ * Handle shadow update rejected document. Resend a get message if receive error
+ * code 500
+ *
+ * @param errorDoc Error document
+ */
 void HappyHerbsService::handleShadowUpdateRejected(
     const JsonDocument &errorDoc) {
   int ts = errorDoc["timestamp"];
@@ -416,9 +529,10 @@ void HappyHerbsService::handleShadowUpdateRejected(
 }
 
 /**
- * Handle messages from the topic
- * "$aws/things/{thing_name}/shadow/update/delta". Upon a new message, the
- * client will update it state as given in the message
+ * Handle shadow update delta document. Update the system state to match the
+ * delta document
+ *
+ * @param deltaDoc Delta document
  */
 void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &deltaDoc) {
   int ts = deltaDoc["timestamp"];

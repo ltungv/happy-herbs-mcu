@@ -81,7 +81,8 @@ class HappyHerbsService : IHappyHerbsStateController {
   String topicShadowUpdateDelta = "";
 
  public:
-  HappyHerbsService(HappyHerbsState &, PubSubClient &, Scheduler &);
+  HappyHerbsService(HappyHerbsState &, PubSubClient &);
+  void setupTaskPlantWatering(Scheduler &, long);
   Task &getTaskPlantWatering();
   void setThingName(String);
 
