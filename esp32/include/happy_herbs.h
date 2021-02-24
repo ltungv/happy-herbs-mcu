@@ -7,11 +7,23 @@
 #include <DHT.h>
 #include <PubSubClient.h>
 
+#include <optional>
+
+#define _TASK_STD_FUNCTION
+#include <TaskSchedulerDeclarations.h>
+
+class IHappyHerbsStateController {
+  virtual void writeLampPinID(bool) = 0;
+  virtual void writePumpPinID(bool) = 0;
+  virtual void setLightThreshold(float) = 0;
+  virtual void setMoistureThreshold(float) = 0;
+};
+
 /**
  * This class manages the entire state of the planting system, any changes to
  * an object of this class will be reflected in the connected hardware
  */
-class HappyHerbsState {
+class HappyHerbsState : public IHappyHerbsStateController {
  private:
   float lightThreshold = 0.0;
   float moistureThreshold = 0.0;
@@ -24,18 +36,18 @@ class HappyHerbsState {
  public:
   HappyHerbsState(BH1750 &, DHT &, int, int, int);
 
-  void writeLampPinID(const bool);
-  bool readLampPinID();
-  void writePumpPinID(const bool);
-  bool readPumpPinID();
-
   float readLightSensorBH1750();
   float readMoistureSensor();
   float readTemperatureSensor();
   float readHumiditySensor();
 
-  void setLightThreshold(float);
-  void setMoistureThreshold(float);
+  void writeLampPinID(bool) override;
+  void writePumpPinID(bool) override;
+  bool readLampPinID();
+  bool readPumpPinID();
+
+  void setLightThreshold(float) override;
+  void setMoistureThreshold(float) override;
   float getLightThreshold();
   float getMoistureThreshold();
 };
@@ -44,16 +56,10 @@ class HappyHerbsState {
  * This classes manages communications with AWS and synchronizes the local state
  * and the remote state
  */
-class HappyHerbsService {
+class HappyHerbsService : IHappyHerbsStateController {
  private:
-  int tsLampState = 0;
-  int tsPumpState = 0;
-  int tsLightThreshold = 0;
-  int tsMoistureThreshold = 0;
-
-  bool awaitingShadowUpdateResponse = false;
-  bool awaitingShadowGetResponse = false;
-
+  HappyHerbsState *hhState;
+  PubSubClient *pubsub;
   String thingName = "";
 
   String topicShadowGet = "";
@@ -65,29 +71,43 @@ class HappyHerbsService {
   String topicShadowUpdateRejected = "";
   String topicShadowUpdateDelta = "";
 
-  HappyHerbsState *hhState;
-  PubSubClient *pubsub;
+  Task taskPlantWatering;
+
+  int tsLampState = 0;
+  int tsPumpState = 0;
+  int tsLightThreshold = 0;
+  int tsMoistureThreshold = 0;
+
+  bool awaitingShadowUpdateReportResponse = false;
+  bool awaitingShadowUpdateDesireResponse = false;
+  bool awaitingShadowGetResponse = false;
 
  public:
-  HappyHerbsService(HappyHerbsState &, PubSubClient &);
+  HappyHerbsService(HappyHerbsState &, PubSubClient &, Scheduler &);
   void setThingName(String);
+
+  void writeLampPinID(bool) override;
+  void writePumpPinID(bool) override;
+  void setLightThreshold(float) override;
+  void setMoistureThreshold(float) override;
 
   void loop();
   bool connect();
   bool connected();
   bool publish(const char *, const char *);
-  bool subscribe(const char *, unsigned int qos);
+  bool subscribe(const char *, unsigned int = 0);
   void handleCallback(const char *, byte *, unsigned int);
 
   void publishShadowGet();
-  void handleShadowGetAccepted(const JsonDocument &);
+  void publishShadowUpdate(JsonDocument &);
+  void publishSensorsMeasurements(JsonDocument &);
 
-  void publishShadowUpdate();
+  void handleShadowGetAccepted(const JsonDocument &);
   void handleShadowUpdateAccepted(const JsonDocument &);
   void handleShadowUpdateRejected(const JsonDocument &);
   void handleShadowUpdateDelta(const JsonDocument &);
 
-  void publishSensorsMeasurements();
+  void restartTaskPlantWatering(int = 0);
 };
 
 #endif  // HAPPY_HERBS_H_

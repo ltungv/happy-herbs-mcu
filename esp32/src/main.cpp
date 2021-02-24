@@ -5,10 +5,12 @@
 #include <FS.h>
 #include <PubSubClient.h>
 #include <SPIFFS.h>
-#include <TaskScheduler.h>
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <Wire.h>
+
+#define _TASK_STD_FUNCTION
+#include <TaskScheduler.h>
 
 #include "constants.h"
 #include "happy_herbs.h"
@@ -35,81 +37,7 @@ Scheduler taskManager;
 HappyHerbsState hhState(lightSensorBH1750, tempHumidSensorDHT, HH_GPIO_LAMP,
                         HH_GPIO_PUMP, HH_GPIO_MOISTURE);
 // Service for managing statea and communication with server
-HappyHerbsService hhService(hhState, pubsubClient);
-
-/**
- * This task immediately publishes the current state of the system to update AWS
- * thing's shadow
- */
-Task tPublishShadowUpdate(
-    TASK_IMMEDIATE,                             // Task's interval (ms)
-    TASK_ONCE,                                  // Tasks's iterations
-    []() { hhService.publishShadowUpdate(); },  // Task's callback
-    &taskManager,                               // Tasks scheduler
-    false);                                     // Is task enabled?
-
-/**
- * This task immediately take measurement from every sensor and publishes the
- * data to AWS
- */
-Task tPublishSensorsMeasurements(
-    TASK_IMMEDIATE,                                    // Task's interval (ms)
-    TASK_ONCE,                                         // Tasks's iterations
-    []() { hhService.publishSensorsMeasurements(); },  // Task's callback
-    &taskManager,                                      // Tasks scheduler
-    false);                                            // Is task enabled?
-
-/**
- * This task turns on the water pump when started, then after its designated
- * interval has passed, the task stops and turns off the water pump
- */
-Task tTurnOnWaterPump(
-    5 * TASK_SECOND,  // Task's interval (ms)
-    TASK_ONCE,        // Tasks's iterations
-    NULL,             // Task's callback
-    &taskManager,     // Tasks scheduler
-    false,            // Is task enabled?
-    []() {
-      Serial.println("START WATERING");
-      hhState.writePumpPinID(true);
-      tPublishShadowUpdate.restart();
-      return true;
-    },  // Function to call when task is enabled
-    []() {
-      Serial.println("STOP WATERING");
-      hhState.writePumpPinID(false);
-      tPublishShadowUpdate.restart();
-    });  // Function to call when task is disabled
-
-/**
- * Call the loop() function on HappyHerbsService so that MQTT messages can be
- * processed
- */
-Task tHappyHerbsServiceLoop(
-    TASK_IMMEDIATE,  // Task's interval (ms)
-    TASK_FOREVER,    // Tasks's iterations
-    []() {           // Task's callback
-      if (hhService.connected()) {
-        hhService.loop();
-        return;
-      }
-
-      if (hhService.connect()) {
-        tPublishShadowUpdate.restartDelayed(500);
-      }
-    },
-    &taskManager,  // Tasks scheduler
-    false);        // Is task enabled?
-
-/**
- * This task periodically restart the task for updating AWS thing's shadow
- */
-Task tPeriodicSensorsMeasurementsPublish(
-    10 * TASK_MINUTE,                                 // Task's interval (ms)
-    TASK_FOREVER,                                     // Tasks's iterations
-    []() { tPublishSensorsMeasurements.restart(); },  // Task's callback
-    &taskManager,                                     // Tasks scheduler
-    false);                                           // Is task enabled?
+HappyHerbsService hhService(hhState, pubsubClient, taskManager);
 
 /**
  * This task periodically take measurement on the moisture sensor and compare
@@ -124,7 +52,7 @@ Task tStartWateringPumpBaseOnMoisture(
       if (moisture < hhState.getMoistureThreshold()) {
         Serial.printf("MOISTURE IS LOW %f.2 < %f.2\n", moisture,
                       hhState.getMoistureThreshold());
-        tTurnOnWaterPump.restart();
+        hhService.restartTaskPlantWatering();
       }
     },
     &taskManager,  // Tasks scheduler
@@ -139,15 +67,14 @@ Task tTurnOnLampBaseOnLightMeter(
     30 * TASK_MINUTE,  // Task's interval (ms)
     TASK_FOREVER,      // Tasks's iterations
     []() {             // Task's callback
-      hhState.writeLampPinID(false);
+      hhService.writeLampPinID(false);
       float lightLevel = hhState.readLightSensorBH1750();
       if (lightLevel < hhState.getLightThreshold()) {
         Serial.printf("LIGHT LEVEL IS LOW %f.2 < %f.2\n", lightLevel,
                       hhState.getLightThreshold());
         Serial.println("TURN ON LAMP");
-        hhState.writeLampPinID(true);
+        hhService.writeLampPinID(true);
       }
-      tPublishShadowUpdate.restart();
     },
     &taskManager,  // Tasks scheduler
     false);        // Is task enabled?
@@ -234,8 +161,6 @@ void setup() {
   hhState.setLightThreshold(DEFAULT_LIGHT_THRESHOLD);
   hhState.setMoistureThreshold(DEFAULT_MOISTURE_THRESHOLD);
 
-  tHappyHerbsServiceLoop.enable();
-  tPeriodicSensorsMeasurementsPublish.enable();
   tTurnOnLampBaseOnLightMeter.enable();
   tStartWateringPumpBaseOnMoisture.enable();
 }
