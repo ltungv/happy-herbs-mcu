@@ -96,19 +96,7 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
     this->writePumpPinID(false);
   });
 
-  this->taskPublishShadowUpdate.setInterval(TASK_IMMEDIATE);
-  this->taskPublishShadowUpdate.setIterations(TASK_ONCE);
-  this->taskPublishShadowUpdate.setCallback(
-      [this]() { this->publishShadowUpdate(); });
-
-  this->taskPublishSensorsMeasurements.setInterval(TASK_IMMEDIATE);
-  this->taskPublishSensorsMeasurements.setIterations(TASK_ONCE);
-  this->taskPublishSensorsMeasurements.setCallback(
-      [this]() { this->publishSensorsMeasurements(); });
-
   scheduler.addTask(this->taskPlantWatering);
-  scheduler.addTask(this->taskPublishShadowUpdate);
-  scheduler.addTask(this->taskPublishSensorsMeasurements);
 }
 
 void HappyHerbsService::setThingName(String thingName) {

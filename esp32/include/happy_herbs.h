@@ -60,6 +60,7 @@ class HappyHerbsService : IHappyHerbsStateController {
  private:
   HappyHerbsState *hhState;
   PubSubClient *pubsub;
+  Task taskPlantWatering;
   String thingName = "";
 
   String topicShadowGet = "";
@@ -70,10 +71,6 @@ class HappyHerbsService : IHappyHerbsStateController {
   String topicShadowUpdateAccepted = "";
   String topicShadowUpdateRejected = "";
   String topicShadowUpdateDelta = "";
-
-  Task taskPlantWatering;
-  Task taskPublishShadowUpdate;
-  Task taskPublishSensorsMeasurements;
 
   int tsLampState = 0;
   int tsPumpState = 0;
@@ -111,8 +108,6 @@ class HappyHerbsService : IHappyHerbsStateController {
   void handleShadowUpdateDelta(const JsonDocument &);
 
   Task &getTaskPlantWatering();
-  Task &getTaskPublishShadowUpdate();
-  Task &getTaskPublishSensorsMeasurements();
 };
 
 #endif  // HAPPY_HERBS_H_
