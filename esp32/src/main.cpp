@@ -56,6 +56,10 @@ Task tPeriodicSensorsMeasurementsPublish(
     10 * TASK_MINUTE, TASK_FOREVER,
     []() { hhService.publishSensorsMeasurements(); }, &scheduler, true);
 
+Task tPeriodicShadowGetPublish(
+    1 * TASK_MINUTE, TASK_FOREVER, []() { hhService.publishShadowGet(); },
+    &scheduler, true);
+
 /**
  * This task periodically take measurement on the moisture sensor and compare
  * the result with the user's threshold, if the moisture is not high enough,

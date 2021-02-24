@@ -83,6 +83,7 @@ class HappyHerbsService : IHappyHerbsStateController {
 
  public:
   HappyHerbsService(HappyHerbsState &, PubSubClient &, Scheduler &);
+  Task &getTaskPlantWatering();
   void setThingName(String);
 
   void writeLampPinID(bool) override;
@@ -103,11 +104,10 @@ class HappyHerbsService : IHappyHerbsStateController {
   void publishSensorsMeasurements();
 
   void handleShadowGetAccepted(const JsonDocument &);
+  void handleShadowGetRejected(const JsonDocument &);
   void handleShadowUpdateAccepted(const JsonDocument &);
   void handleShadowUpdateRejected(const JsonDocument &);
   void handleShadowUpdateDelta(const JsonDocument &);
-
-  Task &getTaskPlantWatering();
 };
 
 #endif  // HAPPY_HERBS_H_
