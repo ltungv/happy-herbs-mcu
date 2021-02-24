@@ -61,16 +61,6 @@ class HappyHerbsService : IHappyHerbsStateController {
   HappyHerbsState *hhState;
   PubSubClient *pubsub;
   Task taskPlantWatering;
-  String thingName = "";
-
-  String topicShadowGet = "";
-  String topicShadowGetAccepted = "";
-  String topicShadowGetRejected = "";
-
-  String topicShadowUpdate = "";
-  String topicShadowUpdateAccepted = "";
-  String topicShadowUpdateRejected = "";
-  String topicShadowUpdateDelta = "";
 
   int tsLampState = 0;
   int tsPumpState = 0;
@@ -80,6 +70,15 @@ class HappyHerbsService : IHappyHerbsStateController {
   int tsShadowGetResponse = 0;
   int tsShadowUpdateResponse = 0;
   int tsShadowUpdateDelta = 0;
+
+  String thingName = "";
+  String topicShadowGet = "";
+  String topicShadowGetAccepted = "";
+  String topicShadowGetRejected = "";
+  String topicShadowUpdate = "";
+  String topicShadowUpdateAccepted = "";
+  String topicShadowUpdateRejected = "";
+  String topicShadowUpdateDelta = "";
 
  public:
   HappyHerbsService(HappyHerbsState &, PubSubClient &, Scheduler &);
@@ -94,15 +93,15 @@ class HappyHerbsService : IHappyHerbsStateController {
   void loop();
   bool connect();
   bool connected();
+
   bool publish(const char *, const char *);
   void publishJson(const char *, const JsonDocument &);
-  bool subscribe(const char *, unsigned int = 0);
-  void handleCallback(const char *, byte *, unsigned int);
-
   void publishShadowGet();
   void publishShadowUpdate();
   void publishSensorsMeasurements();
 
+  bool subscribe(const char *, unsigned int = 0);
+  void handleCallback(const char *, byte *, unsigned int);
   void handleShadowGetAccepted(const JsonDocument &);
   void handleShadowGetRejected(const JsonDocument &);
   void handleShadowUpdateAccepted(const JsonDocument &);

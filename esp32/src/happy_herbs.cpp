@@ -99,6 +99,10 @@ HappyHerbsService::HappyHerbsService(HappyHerbsState &hhState,
   scheduler.addTask(this->taskPlantWatering);
 }
 
+Task &HappyHerbsService::getTaskPlantWatering() {
+  return this->taskPlantWatering;
+}
+
 void HappyHerbsService::setThingName(String thingName) {
   this->thingName = thingName;
 
@@ -211,6 +215,43 @@ void HappyHerbsService::publishJson(const char *topic,
   this->publish(topic, buf);
 }
 
+void HappyHerbsService::publishShadowGet() {
+  this->publish(this->topicShadowGet.c_str(), "");
+}
+
+/**
+ * Publishes a message to the topic "$aws/things/{thing_name}/shadow/update" to
+ * announces to client current state
+ */
+void HappyHerbsService::publishShadowUpdate() {
+  StaticJsonDocument<512> shadowUpdateJson;
+  JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
+  JsonObject reportedObj = stateObj.createNestedObject("reported");
+  reportedObj["lampState"] = this->hhState->readLampPinID();
+  reportedObj["pumpState"] = this->hhState->readPumpPinID();
+  reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
+  reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
+  this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
+}
+
+void HappyHerbsService::publishSensorsMeasurements() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return;
+  }
+  time(&now);
+
+  StaticJsonDocument<512> sensorsJson;
+  sensorsJson["timestamp"] = now;
+  sensorsJson["thingsName"] = this->thingName;
+  sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
+  sensorsJson["moisture"] = this->hhState->readMoistureSensor();
+  sensorsJson["temperature"] = this->hhState->readTemperatureSensor();
+  sensorsJson["humidity"] = this->hhState->readHumiditySensor();
+  this->publishJson(TOPIC_SENSORS_PUBLISH.c_str(), sensorsJson);
+}
+
 bool HappyHerbsService::subscribe(const char *topic, unsigned int qos) {
   bool isSubscribed = this->pubsub->subscribe(topic, qos);
   if (isSubscribed) {
@@ -255,43 +296,6 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
     this->handleShadowUpdateDelta(jsonDoc);
   }
 };
-
-void HappyHerbsService::publishShadowGet() {
-  this->publish(this->topicShadowGet.c_str(), "");
-}
-
-/**
- * Publishes a message to the topic "$aws/things/{thing_name}/shadow/update" to
- * announces to client current state
- */
-void HappyHerbsService::publishShadowUpdate() {
-  StaticJsonDocument<512> shadowUpdateJson;
-  JsonObject stateObj = shadowUpdateJson.createNestedObject("state");
-  JsonObject reportedObj = stateObj.createNestedObject("reported");
-  reportedObj["lampState"] = this->hhState->readLampPinID();
-  reportedObj["pumpState"] = this->hhState->readPumpPinID();
-  reportedObj["lightThreshold"] = this->hhState->getLightThreshold();
-  reportedObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
-  this->publishJson(this->topicShadowUpdate.c_str(), shadowUpdateJson);
-}
-
-void HappyHerbsService::publishSensorsMeasurements() {
-  time_t now;
-  struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
-    return;
-  }
-  time(&now);
-
-  StaticJsonDocument<512> sensorsJson;
-  sensorsJson["timestamp"] = now;
-  sensorsJson["thingsName"] = this->thingName;
-  sensorsJson["luxBH1750"] = this->hhState->readLightSensorBH1750();
-  sensorsJson["moisture"] = this->hhState->readMoistureSensor();
-  sensorsJson["temperature"] = this->hhState->readTemperatureSensor();
-  sensorsJson["humidity"] = this->hhState->readHumiditySensor();
-  this->publishJson(TOPIC_SENSORS_PUBLISH.c_str(), sensorsJson);
-}
 
 void HappyHerbsService::handleShadowGetAccepted(
     const JsonDocument &acceptedDoc) {
@@ -463,8 +467,4 @@ void HappyHerbsService::handleShadowUpdateDelta(const JsonDocument &deltaDoc) {
       this->tsMoistureThreshold = tsMoistureThreshold;
     }
   }
-}
-
-Task &HappyHerbsService::getTaskPlantWatering() {
-  return this->taskPlantWatering;
 }
