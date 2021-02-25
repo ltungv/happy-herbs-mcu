@@ -61,7 +61,7 @@ Task tHappyHerbsServiceLoop(
  * This task takes measurements from every sensor and publish it to AWS, along
  * with the shadow's state, for every 10 minutes.
  */
-Task tPeriodicSensorsMeasurementsPublish(
+Task tPeriodicStateSnapshotPublish(
     10 * TASK_MINUTE, TASK_FOREVER, []() { hhService.publishStateSnapshot(); },
     &scheduler, true);
 
