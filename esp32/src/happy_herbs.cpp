@@ -327,7 +327,35 @@ void HappyHerbsService::publishSensorsMeasurements() {
   sensorsJson["moisture"] = this->hhState->readMoistureSensor();
   sensorsJson["temperature"] = this->hhState->readTemperatureSensor();
   sensorsJson["humidity"] = this->hhState->readHumiditySensor();
-  this->publishJson(TOPIC_SENSORS_PUBLISH.c_str(), sensorsJson);
+  this->publishJson(TOPIC_SENSORS_MEASUREMENTS.c_str(), sensorsJson);
+}
+
+/**
+ * Take measurements for every sensor and publish them to AWS, the data will be
+ * stored inside a DynamoDB table with each corresponds with a table column
+ */
+void HappyHerbsService::publishStateSnapshot() {
+  time_t now;
+  struct tm timeinfo;
+  if (!getLocalTime(&timeinfo)) {
+    return;
+  }
+  time(&now);
+
+  StaticJsonDocument<512> stateJson;
+  stateJson["timestamp"] = now;
+  stateJson["thingsName"] = this->thingName;
+  JsonObject sensorsObj = stateJson.createNestedObject("sensors");
+  sensorsObj["luxBH1750"] = this->hhState->readLightSensorBH1750();
+  sensorsObj["moisture"] = this->hhState->readMoistureSensor();
+  sensorsObj["temperature"] = this->hhState->readTemperatureSensor();
+  sensorsObj["humidity"] = this->hhState->readHumiditySensor();
+  JsonObject shadowObj = stateJson.createNestedObject("shadow");
+  shadowObj["lampState"] = this->hhState->readLampPinID();
+  shadowObj["pumpState"] = this->hhState->readPumpPinID();
+  shadowObj["lightThreshold"] = this->hhState->getLightThreshold();
+  shadowObj["moistureThreshold"] = this->hhState->getMoistureThreshold();
+  this->publishJson(TOPIC_STATE_SNAPSHOT.c_str(), stateJson);
 }
 
 /**

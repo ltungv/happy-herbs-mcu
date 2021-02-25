@@ -27,6 +27,7 @@ const String AWS_ROOTCA_CERT = "/creds/aws/rootca-cert.pem";
 const String AWS_CLIENT_CERT = "/creds/aws/device-cert.crt";
 const String AWS_CLIENT_KEY = "/creds/aws/device-key.key";
 
-const String TOPIC_SENSORS_PUBLISH = "sensorsMeasurements";
+const String TOPIC_SENSORS_MEASUREMENTS = "sensorsMeasurements";
+const String TOPIC_STATE_SNAPSHOT = "stateSnapshot";
 
 #endif  // CONSTANTS_H

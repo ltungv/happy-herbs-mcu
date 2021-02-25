@@ -58,6 +58,14 @@ Task tHappyHerbsServiceLoop(
     &scheduler, true);
 
 /**
+ * This task takes measurements from every sensor and publish it to AWS, along
+ * with the shadow's state, for every 10 minutes.
+ */
+Task tPeriodicSensorsMeasurementsPublish(
+    10 * TASK_MINUTE, TASK_FOREVER, []() { hhService.publishStateSnapshot(); },
+    &scheduler, true);
+
+/**
  * This task takes measurements from every sensor and publish it to AWS for
  * every 10 minutes.
  */
@@ -65,8 +73,11 @@ Task tPeriodicSensorsMeasurementsPublish(
     10 * TASK_MINUTE, TASK_FOREVER,
     []() { hhService.publishSensorsMeasurements(); }, &scheduler, true);
 
+/**
+ * Publish a message every 5 minutes to query AWS for the latest shadow
+ */
 Task tPeriodicShadowGetPublish(
-    1 * TASK_MINUTE, TASK_FOREVER, []() { hhService.publishShadowGet(); },
+    5 * TASK_MINUTE, TASK_FOREVER, []() { hhService.publishShadowGet(); },
     &scheduler, true);
 
 /**

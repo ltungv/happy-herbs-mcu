@@ -100,6 +100,7 @@ class HappyHerbsService : IHappyHerbsStateController {
   void publishShadowGet();
   void publishShadowUpdate();
   void publishSensorsMeasurements();
+  void publishStateSnapshot();
 
   bool subscribe(const char *, unsigned int = 0);
   void handleCallback(const char *, byte *, unsigned int);
