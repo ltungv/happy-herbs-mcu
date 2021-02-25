@@ -60,6 +60,8 @@ void ledBlink(int pin, int onDuration, int offDuration, int n) {
     digitalWrite(pin, HIGH);
     delay(onDuration);
     digitalWrite(pin, LOW);
-    delay(offDuration);
+    if (n - 1 != 0) {
+      delay(offDuration);
+    }
   }
 }

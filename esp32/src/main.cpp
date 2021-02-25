@@ -62,7 +62,11 @@ Task tHappyHerbsServiceLoop(
  * with the shadow's state, for every 10 minutes.
  */
 Task tPeriodicStateSnapshotPublish(
-    10 * TASK_MINUTE, TASK_FOREVER, []() { hhService.publishStateSnapshot(); },
+    10 * TASK_MINUTE, TASK_FOREVER,
+    []() {
+      ledBlink(LED_BUILTIN, 100, 100, 2);
+      hhService.publishStateSnapshot();
+    },
     &scheduler, true);
 
 /**
@@ -71,13 +75,21 @@ Task tPeriodicStateSnapshotPublish(
  */
 Task tPeriodicSensorsMeasurementsPublish(
     10 * TASK_MINUTE, TASK_FOREVER,
-    []() { hhService.publishSensorsMeasurements(); }, &scheduler, true);
+    []() {
+      ledBlink(LED_BUILTIN, 100, 100, 2);
+      hhService.publishSensorsMeasurements();
+    },
+    &scheduler, true);
 
 /**
  * Publish a message every 5 minutes to query AWS for the latest shadow
  */
 Task tPeriodicShadowGetPublish(
-    5 * TASK_MINUTE, TASK_FOREVER, []() { hhService.publishShadowGet(); },
+    5 * TASK_MINUTE, TASK_FOREVER,
+    []() {
+      ledBlink(LED_BUILTIN, 100, 100, 2);
+      hhService.publishShadowGet();
+    },
     &scheduler, true);
 
 /**
@@ -88,6 +100,7 @@ Task tPeriodicShadowGetPublish(
 Task taskStartWateringBaseOnMoisture(
     15 * TASK_MINUTE, TASK_FOREVER,
     []() {
+      ledBlink(LED_BUILTIN, 100, 100, 2);
       float moisture = hhState.readMoistureSensor();
       if (moisture < hhState.getMoistureThreshold()) {
         Serial.printf("MOISTURE IS LOW %f.2 < %f.2\n", moisture,
@@ -105,6 +118,7 @@ Task taskStartWateringBaseOnMoisture(
 Task taskTurnOnLampBaseOnLightMeter(
     30 * TASK_MINUTE, TASK_FOREVER,
     []() {
+      ledBlink(LED_BUILTIN, 100, 100, 2);
       hhService.writeLampPinID(false);
       float lightLevel = hhState.readLightSensorBH1750();
       if (lightLevel < hhState.getLightThreshold()) {
@@ -117,9 +131,10 @@ Task taskTurnOnLampBaseOnLightMeter(
     &scheduler, false);
 
 void setup() {
-  pinMode(HH_GPIO_LAMP, OUTPUT);
-  pinMode(HH_GPIO_PUMP, OUTPUT);
-  pinMode(HH_GPIO_MOISTURE, INPUT);
+  pinMode(LED_BUILTIN, OUTPUT);      // digital
+  pinMode(HH_GPIO_LAMP, OUTPUT);     // digital
+  pinMode(HH_GPIO_PUMP, OUTPUT);     // digital
+  pinMode(HH_GPIO_MOISTURE, INPUT);  // analog
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;

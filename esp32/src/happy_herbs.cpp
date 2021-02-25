@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include "constants.h"
+#include "ioutils.h"
 #include "time.h"
 
 HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150,
@@ -263,6 +264,7 @@ bool HappyHerbsService::publish(const char *topic, const char *payload) {
     Serial.print("]");
     Serial.print(" : ");
     Serial.printf("%s\n\n", payload);
+    ledBlink(LED_BUILTIN, 100, 100, 1);
   }
   return isSent;
 }
@@ -389,6 +391,7 @@ void HappyHerbsService::handleCallback(const char *topic, byte *payload,
   Serial.print("]");
   Serial.print(" : ");
   Serial.printf("%s\n\n", payload);
+  ledBlink(LED_BUILTIN, 100, 100, 1);
 
   StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> jsonDoc;
 
