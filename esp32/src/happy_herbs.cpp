@@ -47,7 +47,7 @@ float HappyHerbsState::readMoistureSensor() {
   #ifdef __HAPPY_HERBS_ESP32S2
   return 0;
   #else
-  return analogRead(this->moistureSensorPinID);
+  return analogRead(this->moistureSensorPinID) / (float) (1 << 12);
   #endif
 }
 
