@@ -44,8 +44,11 @@ float HappyHerbsState::readLightSensorBH1750() {
  * (https://github.com/espressif/arduino-esp32/issues/4844)
  */
 float HappyHerbsState::readMoistureSensor() {
-  // return analogRead(this->moistureSensorPinID);
+  #ifdef __HAPPY_HERBS_ESP32S2
   return 0;
+  #else
+  return analogRead(this->moistureSensorPinID);
+  #endif
 }
 
 float HappyHerbsState::readTemperatureSensor() {
