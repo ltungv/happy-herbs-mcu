@@ -33,6 +33,7 @@ class HappyHerbsState : public IHappyHerbsStateController {
 
  public:
   HappyHerbsState(BH1750 &, DHT &, int, int, int);
+  bool begin();
 
   float readLightSensorBH1750();
   float readMoistureSensor();

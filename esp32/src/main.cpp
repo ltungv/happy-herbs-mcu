@@ -146,12 +146,6 @@ void setup() {
     return;
   }
 
-  if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
-    Serial.println("Could not begin BH1750 light sensor");
-  }
-
-  tempHumidSensorDHT.begin();
-
   // ================ CONNECT TO WIFI ================
   char* miscCreds = loadFile(MISC_CREDS.c_str());
   StaticJsonDocument<MQTT_MESSAGE_BUFFER_SIZE> miscCredsJson;
@@ -214,6 +208,9 @@ void setup() {
   hhService.setThingName(awsThingName);
   hhService.setupTaskPlantWatering(scheduler, 5 * TASK_SECOND);
 
+  if (!hhState.begin()) {
+    Serial.println("Could not initialize all sensors");
+  }
   hhState.writeLampPinID(false);
   hhState.writePumpPinID(false);
   hhState.setLightThreshold(DEFAULT_LIGHT_THRESHOLD);

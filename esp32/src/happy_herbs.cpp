@@ -16,6 +16,14 @@ HappyHerbsState::HappyHerbsState(BH1750 &lightSensorBH17150,
   this->moistureSensorPinID = moistureSensorPinId;
 }
 
+bool HappyHerbsState::begin() {
+  if (!this->lightSensorBH1750->begin()) {
+    return false;
+  }
+  this->tempHumidSensorDHT->begin();
+  return true;
+}
+
 bool HappyHerbsState::readLampPinID() {
   return digitalRead(this->lampPinID) == HIGH;
 }
@@ -44,11 +52,11 @@ float HappyHerbsState::readLightSensorBH1750() {
  * (https://github.com/espressif/arduino-esp32/issues/4844)
  */
 float HappyHerbsState::readMoistureSensor() {
-  #ifdef __HAPPY_HERBS_ESP32S2
+#ifdef __HAPPY_HERBS_ESP32S2
   return 0;
-  #else
-  return analogRead(this->moistureSensorPinID) / (float) (1 << 12);
-  #endif
+#else
+  return analogRead(this->moistureSensorPinID) / (float)(1 << 12);
+#endif
 }
 
 float HappyHerbsState::readTemperatureSensor() {
