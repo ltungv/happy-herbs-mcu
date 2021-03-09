@@ -19,6 +19,8 @@ const float DEFAULT_LIGHT_THRESHOLD = 100.0;
 const float DEFAULT_MOISTURE_THRESHOLD = 30.0;
 const int MQTT_MESSAGE_BUFFER_SIZE = 2048;
 
+const int HH_I2C_BH1750_ADDR = 0x23;
+
 #ifdef __HAPPY_HERBS_ESP32S2
 
 const int SERIAL_BAUD_RATE = 115200;
@@ -29,19 +31,16 @@ const int HH_GPIO_LAMP = 21;
 const int HH_GPIO_PUMP = 0;
 const int HH_GPIO_DHT = 4;
 const int HH_GPIO_MOISTURE = 10;
-const int HH_I2C_BH1750_ADDR = 0x23;
 
 #else
 
 const int SERIAL_BAUD_RATE = 115200;
-const int I2C_SDA0 = 8;
-const int I2C_SCL0 = 9;
-
-const int HH_GPIO_LAMP = 21;
-const int HH_GPIO_PUMP = 0;
-const int HH_GPIO_DHT = 4;
-const int HH_GPIO_MOISTURE = 10;
-const int HH_I2C_BH1750_ADDR = 0x23;
+const int I2C_SDA0 = 21;
+const int I2C_SCL0 = 22;
+const int HH_GPIO_LAMP = 12;
+const int HH_GPIO_PUMP = 13;
+const int HH_GPIO_DHT = 14;
+const int HH_GPIO_MOISTURE = 33;
 
 #endif
 
