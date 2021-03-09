@@ -135,6 +135,7 @@ void setup() {
   pinMode(HH_GPIO_LAMP, OUTPUT);     // digital
   pinMode(HH_GPIO_PUMP, OUTPUT);     // digital
   pinMode(HH_GPIO_MOISTURE, INPUT);  // analog
+
   Serial.begin(SERIAL_BAUD_RATE);
   while (!Serial)
     ;
@@ -148,6 +149,8 @@ void setup() {
   if (!lightSensorBH1750.begin(BH1750::CONTINUOUS_HIGH_RES_MODE_2)) {
     Serial.println("Could not begin BH1750 light sensor");
   }
+
+  tempHumidSensorDHT.begin();
 
   // ================ CONNECT TO WIFI ================
   char* miscCreds = loadFile(MISC_CREDS.c_str());
