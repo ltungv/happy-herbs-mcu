@@ -7,8 +7,6 @@
 #include <DHT.h>
 #include <PubSubClient.h>
 
-#include <optional>
-
 #define _TASK_STD_FUNCTION
 #include <TaskSchedulerDeclarations.h>
 
